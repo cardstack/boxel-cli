@@ -133,14 +133,14 @@ For computed fields, ask: "Am I keeping this simple and unidirectional?"
 - `edit` - Form for data modification
 
 **Every CardDef inherits:**
-- `title`, `description`, `thumbnailURL`
+- `cardTitle`, `description`, `thumbnailURL`
 
 ### Inherited Fields and CardInfo
 
 **IMPORTANT:** Every CardDef automatically inherits these base fields from the CardDef base class:
 
 #### Direct Inherited Fields (Read-Only)
-- `title` (StringField) - Computed pass-through from `cardInfo.title`
+- `cardTitle` (StringField) - Computed pass-through from `cardInfo.title` (NOTE: renamed from `title`)
 - `description` (StringField) - Computed pass-through from `cardInfo.description`
 - `thumbnailURL` (StringField) - Computed pass-through from `cardInfo.thumbnailURL`
 
@@ -154,20 +154,20 @@ Every card also inherits a `cardInfo` field which contains the actual user-edita
 - `cardInfo.notes` (MarkdownField) - Optional internal notes
 
 **How It Works:**
-The top-level `title`, `description`, and `thumbnailURL` fields are computed properties that automatically pass through the values from `cardInfo.title`, `cardInfo.description`, and `cardInfo.thumbnailURL` respectively. This means:
+The top-level `cardTitle`, `description`, and `thumbnailURL` fields are computed properties that automatically pass through the values from `cardInfo.title`, `cardInfo.description`, and `cardInfo.thumbnailURL` respectively. This means:
 
-- When you read `@model.title` in templates, you get the value from `cardInfo.title`
+- When you read `@model.cardTitle` in templates, you get the value from `cardInfo.title`
 - Users edit values through the `cardInfo` field in edit mode
 - Override to add custom logic that respects user input
 
-**Best Practice:** Define your own primary field and compute `title` to respect user's `cardInfo.title` choice:
+**Best Practice:** Define your own primary field and compute `cardTitle` to respect user's `cardInfo.title` choice:
 
 ```gts
 export class BlogPost extends CardDef {
   @field headline = contains(StringField); // Your primary field
-  
-  // Override inherited title - respects user's cardInfo.title if set
-  @field title = contains(StringField, {
+
+  // Override inherited cardTitle - respects user's cardInfo.title if set
+  @field cardTitle = contains(StringField, {
     computeVia: function() {
       return this.cardInfo?.title ?? this.headline ?? 'Untitled';
     }
@@ -728,12 +728,12 @@ export class RecipeCard extends CardDef {
   </div>
 </div>
 
-**Card with computed title:**
+**Card with computed cardTitle:**
 ```gts
 export class BlogPost extends CardDef {
   @field headline = contains(StringField);
-  
-  @field title = contains(StringField, {
+
+  @field cardTitle = contains(StringField, {
     computeVia: function(this: BlogPost) {
       return this.headline ?? 'Untitled Post';
     }
@@ -778,7 +778,7 @@ export class BlogPost extends CardDef {
   @field tags = containsMany(TagField);
   @field relatedPosts = linksToMany(() => BlogPost);
   
-  @field title = contains(StringField, {
+  @field cardTitle = contains(StringField, {
     computeVia: function(this: BlogPost) {
       try {
         const baseTitle = this.headline ?? 'Untitled Post';
@@ -786,7 +786,7 @@ export class BlogPost extends CardDef {
         if (baseTitle.length <= maxLength) return baseTitle;
         return baseTitle.substring(0, maxLength - 3) + '...';
       } catch (e) {
-        console.error('BlogPost: Error computing title', e);
+        console.error('BlogPost: Error computing cardTitle', e);
         return 'Untitled Post';
       }
     }
@@ -844,9 +844,9 @@ export class AddressField extends FieldDef {
 
 ```gts
 // ❌ DANGEROUS: Self-reference causes infinite recursion
-@field title = contains(StringField, {
+@field cardTitle = contains(StringField, {
   computeVia: function(this: BlogPost) {
-    return this.title || 'Untitled'; // STACK OVERFLOW!
+    return this.cardTitle || 'Untitled'; // STACK OVERFLOW!
   }
 });
 
@@ -2642,8 +2642,8 @@ const PriorityField = enumField(StringField, {
 export class Task extends CardDef {
   @field taskName = contains(StringField);
   @field priority = contains(PriorityField);
-  
-  @field title = contains(StringField, {
+
+  @field cardTitle = contains(StringField, {
     computeVia: function(this: Task) {
       return this.taskName ?? 'Untitled Task';
     }
