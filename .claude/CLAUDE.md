@@ -213,6 +213,56 @@ boxel history .                   # View what changed
 
 ## Critical Patterns
 
+### 0. ALWAYS Write Source Code, Never Compiled Output
+When editing `.gts` files, **always write clean idiomatic source code**:
+```gts
+// CORRECT - Clean source
+export class MyCard extends CardDef {
+  static fitted = class Fitted extends Component<typeof MyCard> {
+    <template>
+      <div class="container">...</div>
+      <style scoped>
+        .container { ... }
+      </style>
+    </template>
+  };
+}
+```
+
+**NEVER** write or edit:
+- Compiled JSON blocks (`"block": "[[[10,0]..."`)
+- Base64-encoded CSS imports (`./file.gts.CiAg...`)
+- Wire format template arrays
+
+The server compiles source to these formats. If you see them, the file was pulled from server - rewrite it as clean source.
+
+### 0.5. Edit Lock Before Modifying Files
+When editing files locally while watch is running, use edit lock to prevent watch from overwriting your changes:
+```bash
+boxel edit . grammy-gallery.gts       # Lock file before editing
+# ... make your edits ...
+boxel sync . --prefer-local           # Push your changes
+boxel touch . Instance/file.json      # Force re-index
+boxel edit . --done grammy-gallery.gts  # Release lock
+```
+
+**Quick commands:**
+```bash
+boxel edit . --list                   # See what's locked
+boxel edit . --clear                  # Clear all locks
+boxel edit . --done                   # Release all locks
+```
+
+**Why:** Watch mode pulls remote changes which can overwrite local edits. Edit lock tells watch to skip those files.
+
+### 0.5. Touch Instance After Remote .gts Update
+When you update a `.gts` card definition file remotely (via sync/push), touch an instance file to force re-indexing:
+```bash
+boxel touch . CardName/instance.json  # Touch specific instance
+boxel touch .                         # Or touch all files
+```
+**Why:** The realm server may not re-index the definition until an instance using it is touched.
+
 ### 1. Stop Watch Before Restore
 Watch will re-pull deleted files if running during restore:
 ```bash

@@ -5,6 +5,7 @@ import { RealmAuthClient } from '../lib/realm-auth-client.js';
 import { resolveWorkspace } from '../lib/workspace-resolver.js';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
 import { createHash } from 'crypto';
+import { getEditingFiles } from '../lib/edit-lock.js';
 
 interface WatchOptions {
   interval?: number;
@@ -91,16 +92,35 @@ export async function watchCommand(
   const applyPendingChanges = async (remoteMtimes: Record<string, number>) => {
     if (pendingChanges.size === 0) return;
 
+    // Check for files being edited - skip those
+    const editingFiles = getEditingFiles(localDir);
+    const skippedFiles: string[] = [];
+
     const changes: CheckpointChange[] = [];
     const newFiles: string[] = [];
     const modifiedFiles: string[] = [];
     const deletedFiles: string[] = [];
 
     for (const [file, info] of pendingChanges.entries()) {
+      // Skip files that are being edited locally
+      if (editingFiles.includes(file)) {
+        skippedFiles.push(file);
+        continue;
+      }
       changes.push({ file, status: info.status });
       if (info.status === 'added') newFiles.push(file);
       else if (info.status === 'modified') modifiedFiles.push(file);
       else deletedFiles.push(file);
+    }
+
+    // Report skipped files
+    if (skippedFiles.length > 0) {
+      console.log(`\n[${timestamp()}] ⏸️  Skipped ${skippedFiles.length} file(s) being edited: ${skippedFiles.join(', ')}`);
+    }
+
+    if (changes.length === 0) {
+      pendingChanges.clear();
+      return;
     }
 
     console.log(`\n[${timestamp()}] 📦 Applying ${changes.length} changes (debounced)...`);
@@ -197,7 +217,7 @@ export async function watchCommand(
         return;
       }
 
-      const data = await response.json() as any;
+      const data = await response.json();
       const mtimesData = data?.data?.attributes?.mtimes || {};
 
       // Convert to relative paths

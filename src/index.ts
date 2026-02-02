@@ -13,6 +13,7 @@ import { historyCommand } from './commands/history.js';
 import { watchCommand } from './commands/watch.js';
 import { skillsCommand } from './commands/skills.js';
 import { touchCommand } from './commands/touch.js';
+import { editCommand } from './commands/edit.js';
 
 const program = new Command();
 
@@ -173,6 +174,19 @@ program
   .option('--dry-run', 'Show what would be done without making changes')
   .action(async (workspace: string | undefined, files: string[], options: { all?: boolean; dryRun?: boolean }) => {
     await touchCommand(workspace || '.', files || [], options);
+  });
+
+program
+  .command('edit')
+  .description('Mark files as being edited (watch mode will skip them)')
+  .argument('[workspace]', 'Workspace reference: . | ./path (default: .)')
+  .argument('[files...]', 'Files to mark as being edited')
+  .option('-l, --list', 'List files currently being edited')
+  .option('-d, --done', 'Mark files as done editing (or all if no files specified)')
+  .option('-c, --clear', 'Clear all edit locks')
+  .option('-a, --agent <name>', 'Name of editing agent (default: user)')
+  .action(async (workspace: string | undefined, files: string[], options: { list?: boolean; done?: boolean; clear?: boolean; agent?: string }) => {
+    await editCommand(workspace || '.', files || [], options);
   });
 
 // Add help text for environment variables
