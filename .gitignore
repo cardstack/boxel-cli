@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment (contains credentials)
+.env
+.env.local
+
+# Sync artifacts (workspace-specific)
+.boxel-sync.json
+.boxel-history/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test workspaces
+test-workspace/
+*-workspace/
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript cache
+*.tsbuildinfo
