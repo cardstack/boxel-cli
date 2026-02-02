@@ -93,14 +93,6 @@ GrammyAward/              # Instances in PascalCase directory
         "links": {
           "self": "../Author/jane-doe"
         }
-      },
-      "tags": {
-        "links": {
-          "self": [
-            "../Tag/tech",
-            "../Tag/news"
-          ]
-        }
       }
     },
     "meta": {
@@ -111,6 +103,48 @@ GrammyAward/              # Instances in PascalCase directory
     }
   }
 }
+```
+
+## linksToMany Relationships (CRITICAL)
+
+**🔴 For `linksToMany` fields, use numbered keys like `fieldName.0`, `fieldName.1`, etc.**
+
+```json
+{
+  "data": {
+    "relationships": {
+      "tags.0": {
+        "links": {
+          "self": "../Tag/tech"
+        }
+      },
+      "tags.1": {
+        "links": {
+          "self": "../Tag/news"
+        }
+      },
+      "tags.2": {
+        "links": {
+          "self": "../Tag/tutorial"
+        }
+      }
+    }
+  }
+}
+```
+
+### ❌ Wrong: Array syntax (does NOT work)
+```json
+{
+  "relationships": {
+    "tags": {
+      "links": {
+        "self": ["../Tag/tech", "../Tag/news"]
+      }
+    }
+  }
+}
+```
 ```
 
 ### JSON Structure Rules
@@ -256,6 +290,7 @@ When using the `/_search` API endpoint:
 | Missing `data` wrapper in JSON | Wrap everything in `{"data": {...}}` |
 | PascalCase for `.gts` files | Use `kebab-case.gts` |
 | kebab-case for instance dirs | Use `PascalCase/` |
+| `linksToMany` as array | Use numbered keys: `field.0`, `field.1`, etc. |
 
 ## Essential Formats
 

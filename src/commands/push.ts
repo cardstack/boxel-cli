@@ -1,4 +1,5 @@
 import { RealmSyncBase, validateMatrixEnvVars, type SyncOptions } from '../lib/realm-sync-base.js';
+import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -157,6 +158,20 @@ class RealmPusher extends RealmSyncBase {
     // Save manifest for future incremental syncs
     if (!this.options.dryRun) {
       saveManifest(this.options.localDir, newManifest);
+    }
+
+    // Create checkpoint for pushed files
+    if (!this.options.dryRun && filesToUpload.size > 0) {
+      const checkpointManager = new CheckpointManager(this.options.localDir);
+      const pushChanges: CheckpointChange[] = Array.from(filesToUpload.keys()).map(f => ({
+        file: f,
+        status: 'modified' as const,
+      }));
+      const checkpoint = checkpointManager.createCheckpoint('local', pushChanges);
+      if (checkpoint) {
+        const tag = checkpoint.isMajor ? '[MAJOR]' : '[minor]';
+        console.log(`\n📍 Checkpoint created: ${checkpoint.shortHash} ${tag} ${checkpoint.message}`);
+      }
     }
 
     console.log('Push completed');

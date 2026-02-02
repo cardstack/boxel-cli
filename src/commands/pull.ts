@@ -1,4 +1,5 @@
 import { RealmSyncBase, validateMatrixEnvVars, type SyncOptions } from '../lib/realm-sync-base.js';
+import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -54,10 +55,12 @@ class RealmPuller extends RealmSyncBase {
     }
 
     // Download remote files
+    const downloadedFiles: string[] = [];
     for (const [relativePath] of remoteFiles) {
       try {
         const localPath = path.join(this.options.localDir, relativePath);
         await this.downloadFile(relativePath, localPath);
+        downloadedFiles.push(relativePath);
       } catch (error) {
         this.hasError = true;
         console.error(`Error downloading ${relativePath}:`, error);
@@ -87,6 +90,20 @@ class RealmPuller extends RealmSyncBase {
           this.hasError = true;
           console.error(`Error deleting local file ${relativePath}:`, error);
         }
+      }
+    }
+
+    // Create checkpoint for pulled files
+    if (!this.options.dryRun && downloadedFiles.length > 0) {
+      const checkpointManager = new CheckpointManager(this.options.localDir);
+      const pullChanges: CheckpointChange[] = downloadedFiles.map(f => ({
+        file: f,
+        status: 'modified' as const,
+      }));
+      const checkpoint = checkpointManager.createCheckpoint('remote', pullChanges);
+      if (checkpoint) {
+        const tag = checkpoint.isMajor ? '[MAJOR]' : '[minor]';
+        console.log(`\n📍 Checkpoint created: ${checkpoint.shortHash} ${tag} ${checkpoint.message}`);
       }
     }
 

@@ -12,6 +12,7 @@ import { createCommand } from './commands/create.js';
 import { historyCommand } from './commands/history.js';
 import { watchCommand } from './commands/watch.js';
 import { skillsCommand } from './commands/skills.js';
+import { touchCommand } from './commands/touch.js';
 
 const program = new Command();
 
@@ -163,6 +164,17 @@ program
     await skillsCommand(options);
   });
 
+program
+  .command('touch')
+  .description('Touch files to force realm re-indexing')
+  .argument('[workspace]', 'Workspace reference: . | ./path | @user/workspace (default: .)')
+  .argument('[files...]', 'Specific files to touch (default: all .json and .gts files)')
+  .option('--all', 'Touch all .json and .gts files')
+  .option('--dry-run', 'Show what would be done without making changes')
+  .action(async (workspace: string | undefined, files: string[], options: { all?: boolean; dryRun?: boolean }) => {
+    await touchCommand(workspace || '.', files || [], options);
+  });
+
 // Add help text for environment variables
 program.addHelpText('after', `
 Environment Variables (required):
@@ -198,6 +210,10 @@ Examples:
   boxel watch . -q                 Quiet mode (only show changes)
 
   boxel pull https://... ./local   One-way pull (for read-only realms)
+
+  boxel touch .                    Touch all files to force re-indexing
+  boxel touch . card.gts           Touch specific file
+  boxel touch . GrammyAward/       Touch all files in directory
 `);
 
 program.parse();
