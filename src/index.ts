@@ -11,6 +11,7 @@ import { statusCommand } from './commands/status.js';
 import { createCommand } from './commands/create.js';
 import { historyCommand } from './commands/history.js';
 import { watchCommand } from './commands/watch.js';
+import { skillsCommand } from './commands/skills.js';
 
 const program = new Command();
 
@@ -142,6 +143,26 @@ program
     });
   });
 
+program
+  .command('skills')
+  .description('Fetch and manage Boxel skill cards as Claude Code commands')
+  .option('-l, --list', 'List all available skills')
+  .option('-e, --enable <name>', 'Enable a skill by name or ID')
+  .option('-d, --disable <name>', 'Disable a skill by name or ID')
+  .option('-r, --refresh', 'Refresh skills from Boxel servers')
+  .option('--export <dir>', 'Export enabled skills as Claude commands to a directory')
+  .option('--realm <url>', 'Fetch skills from a specific realm URL')
+  .action(async (options: {
+    list?: boolean;
+    enable?: string;
+    disable?: string;
+    refresh?: boolean;
+    export?: string;
+    realm?: string;
+  }) => {
+    await skillsCommand(options);
+  });
+
 // Add help text for environment variables
 program.addHelpText('after', `
 Environment Variables (required):
@@ -161,12 +182,12 @@ Examples:
   boxel list                             List all accessible workspaces
 
   boxel status                     Check current directory
-  boxel status @username/workspace  Check specific workspace by name
+  boxel status @aallen90/personal  Check specific workspace by name
   boxel status --all               Check all your workspaces
   boxel status . --pull            Pull remote changes
 
   boxel sync .                     Sync current directory
-  boxel sync @username/workspace    Sync workspace by name
+  boxel sync @aallen90/personal    Sync workspace by name
   boxel sync ./cards https://...   Sync with explicit URL (first time setup)
 
   boxel check ./file.json          Check single file before editing

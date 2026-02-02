@@ -93,6 +93,15 @@ boxel history .             # View checkpoints
 boxel history . -r 3        # Restore to checkpoint #3
 ```
 
+### Manage Skills
+```bash
+boxel skills --refresh      # Fetch skills from Boxel
+boxel skills --list         # List available skills
+boxel skills --enable "Boxel Development"  # Enable a skill
+boxel skills --disable "Boxel Development" # Disable a skill
+boxel skills --export .     # Export enabled skills as Claude commands
+```
+
 ### Other Commands
 ```bash
 boxel list                  # List workspaces
@@ -130,6 +139,20 @@ boxel history . -r 2      # Restore to checkpoint #2
 boxel sync . --prefer-local # Push restoration to server
 ```
 
+## Boxel Skills
+
+Boxel Skills are AI instruction cards from Boxel that guide Claude in specific tasks. The **Boxel Development** skill is enabled by default for vibe coding.
+
+### Managing Skills
+```bash
+boxel skills --refresh      # Fetch latest skills from Boxel
+boxel skills --list         # See available skills
+boxel skills --enable "X"   # Enable a skill
+boxel skills --export .     # Export to .claude/commands/
+```
+
+Skills become Claude slash commands (e.g., `/boxel-development`).
+
 ## Using with Claude Code
 
 This repo includes Claude Code integration for AI-assisted development.
@@ -151,12 +174,53 @@ See `.claude/CLAUDE.md` for full documentation.
 
 ```
 workspace/
-├── .boxel-sync.json      # Sync manifest
+├── .boxel-sync.json      # Sync manifest (auto-generated)
 ├── .boxel-history/       # Checkpoint history (git-based)
 ├── .realm.json           # Workspace config
-├── *.gts                 # Card definitions
-└── CardName/*.json       # Card instances
+├── index.json            # Workspace index
+├── blog-post.gts         # Card definition (kebab-case)
+└── BlogPost/             # Instance directory (PascalCase)
+    ├── my-first-post.json
+    └── another-post.json
 ```
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Definitions | `kebab-case.gts` | `blog-post.gts` |
+| Instance dirs | `PascalCase/` | `BlogPost/` |
+| Instance files | `kebab-case.json` | `my-first-post.json` |
+
+### Module Paths (Critical!)
+
+The `adoptsFrom.module` path is **relative to the JSON file**:
+
+```json
+// In BlogPost/my-first-post.json:
+{
+  "data": {
+    "meta": {
+      "adoptsFrom": {
+        "module": "../blog-post",  // ← Go UP to parent
+        "name": "BlogPost"
+      }
+    }
+  }
+}
+```
+
+| JSON Location | Definition | Module Path |
+|--------------|------------|-------------|
+| `root/Card.json` | `root/card.gts` | `"./card"` |
+| `root/Card/instance.json` | `root/card.gts` | `"../card"` |
+
+### The Cardinal Rule
+
+| Field Type | In `.gts` use | In `.json` use |
+|------------|---------------|----------------|
+| Extends `CardDef` | `linksTo` | `relationships` |
+| Extends `FieldDef` | `contains` | `attributes` |
 
 ## Workspace References
 
@@ -213,6 +277,5 @@ PRs welcome! Please ensure:
 
 ## Links
 
-- [Boxel](https://boxel.ai) - Web application
-- [Documentation](https://boxel.ai/docs) - Full Boxel docs
-- [Discord](https://discord.gg/boxel) - Community
+- [Boxel](https://boxel.ai) - Website
+- [Discord](https://discord.gg/cardstack) - Community

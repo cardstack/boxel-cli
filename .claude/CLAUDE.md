@@ -1,6 +1,26 @@
 # Boxel CLI - Claude Code Integration
 
-**IMPORTANT: When a user opens this repo, check if they need onboarding first!**
+## Auto-Activate Boxel Development Skill
+
+**IMPORTANT:** When the user is doing ANY of the following, automatically read and follow `.claude/commands/boxel-development.md`:
+
+- Creating or editing `.gts` files (card definitions)
+- Creating or editing `.json` card instances
+- Asking about Boxel patterns, cards, or components
+- "Vibe coding" or prototyping Boxel cards
+- Working in a synced Boxel workspace (has `.boxel-sync.json`)
+- Asking to create, build, or design anything in Boxel
+
+**How to activate:** Read the skill file at the start of the task:
+```
+Read .claude/commands/boxel-development.md
+```
+
+The skill contains comprehensive Boxel development guidance including CardDef/FieldDef patterns, templates, styling, and best practices.
+
+---
+
+**When a user opens this repo, check if they need onboarding first!**
 
 ## Onboarding Flow
 
@@ -121,12 +141,42 @@ boxel history . -r 3              # Quick restore to #3
 boxel history . -r abc123         # Restore by hash
 ```
 
+### Skills
+```bash
+boxel skills --refresh            # Fetch skills from Boxel
+boxel skills --list               # List all available skills
+boxel skills --enable "Name"      # Enable a skill
+boxel skills --disable "Name"     # Disable a skill
+boxel skills --export ./project   # Export as Claude commands
+```
+
 ### Other
 ```bash
 boxel list                        # List workspaces
 boxel create endpoint "Name"      # Create workspace
 boxel pull <url> ./local          # One-way pull
 boxel push ./local <url>          # One-way push
+```
+
+### `/boxel-development` - Default Vibe Coding Skill
+The **Boxel Development** skill is auto-enabled for vibe coding. It provides comprehensive guidance for:
+- Card definitions (.gts files)
+- Card instances (.json files)
+- Boxel patterns and best practices
+
+### `/boxel-file-structure` - File Organization Rules
+Reference for local file organization:
+- Directory naming: definitions (`kebab-case.gts`), instances (`PascalCase/`)
+- Module paths: relative to JSON location (`../card` from subdirectory)
+- JSON structure for card instances
+
+### `/skills` - Manage Additional Skills
+Fetch and manage AI instruction cards from Boxel:
+```bash
+boxel skills --refresh       # Fetch latest from Boxel
+boxel skills --list          # See available skills
+boxel skills --enable "X"    # Enable additional skills
+boxel skills --export .      # Re-export to .claude/commands/
 ```
 
 ---
