@@ -75,20 +75,31 @@ class RealmPuller extends RealmSyncBase {
       }
 
       if (filesToDelete.size > 0) {
-        console.log(
-          `Will delete ${filesToDelete.size} local files that don't exist in workspace`,
-        );
-      }
+        // Create checkpoint BEFORE deleting so we can recover
+        const checkpointManager = new CheckpointManager(this.options.localDir);
+        const deleteChanges: CheckpointChange[] = Array.from(filesToDelete).map(f => ({
+          file: f,
+          status: 'deleted' as const,
+        }));
+        const preDeleteCheckpoint = checkpointManager.createCheckpoint('remote', deleteChanges,
+          `Pre-delete checkpoint: ${filesToDelete.size} files not on server`);
+        if (preDeleteCheckpoint) {
+          console.log(`\n📍 Checkpoint created before deletion: ${preDeleteCheckpoint.shortHash}`);
+        }
 
-      for (const relativePath of filesToDelete) {
-        try {
-          const localPath = localFiles.get(relativePath);
-          if (localPath) {
-            await this.deleteLocalFile(localPath);
+        console.log(`\nDeleting ${filesToDelete.size} local files that don't exist in workspace...`);
+
+        for (const relativePath of filesToDelete) {
+          try {
+            const localPath = localFiles.get(relativePath);
+            if (localPath) {
+              await this.deleteLocalFile(localPath);
+              console.log(`  Deleted: ${relativePath}`);
+            }
+          } catch (error) {
+            this.hasError = true;
+            console.error(`Error deleting local file ${relativePath}:`, error);
           }
-        } catch (error) {
-          this.hasError = true;
-          console.error(`Error deleting local file ${relativePath}:`, error);
         }
       }
     }

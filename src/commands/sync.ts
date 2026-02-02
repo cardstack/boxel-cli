@@ -179,8 +179,10 @@ class RealmSyncer extends RealmSyncBase {
     console.log(`  Push (local → remote): ${pushActions.length} files`);
     console.log(`  Pull (remote → local): ${pullActions.length} files`);
     console.log(`  Conflicts: ${conflicts.length} files`);
-    if (this.syncOptions.delete) {
-      console.log(`  Delete local: ${deleteLocalActions.length} files`);
+    if (deleteLocalActions.length > 0) {
+      console.log(`  Delete local (removed from server): ${deleteLocalActions.length} files`);
+    }
+    if (this.syncOptions.delete && deleteRemoteActions.length > 0) {
       console.log(`  Delete remote: ${deleteRemoteActions.length} files`);
     }
     console.log(`  Unchanged: ${noActions.length} files`);
@@ -281,12 +283,26 @@ class RealmSyncer extends RealmSyncBase {
       }
     }
 
-    // Handle deletions (--delete flag required for auto-detected deletions)
-    if (this.syncOptions.delete) {
+    // Handle local deletions (files deleted on server) - always sync these
+    // Create checkpoint BEFORE deleting so we can recover
+    if (deleteLocalActions.length > 0) {
+      const checkpointManager = new CheckpointManager(this.options.localDir);
+      const deleteChanges: CheckpointChange[] = deleteLocalActions.map(a => ({
+        file: a.relativePath,
+        status: 'deleted' as const,
+      }));
+      const preDeleteCheckpoint = checkpointManager.createCheckpoint('remote', deleteChanges,
+        `Pre-delete checkpoint: ${deleteLocalActions.length} files removed from server`);
+      if (preDeleteCheckpoint) {
+        console.log(`\n📍 Checkpoint created before deletion: ${preDeleteCheckpoint.shortHash}`);
+      }
+
+      console.log(`\nDeleting ${deleteLocalActions.length} local files (removed from server)...`);
       for (const action of deleteLocalActions) {
         const localPath = path.join(this.options.localDir, action.relativePath);
         try {
           await this.deleteLocalFile(localPath);
+          console.log(`  Deleted: ${action.relativePath}`);
         } catch (error) {
           this.hasError = true;
           console.error(`Error deleting local ${action.relativePath}:`, error);
