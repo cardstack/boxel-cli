@@ -85,12 +85,34 @@ boxel sync . --prefer-remote # Keep remote on conflicts
 ```bash
 boxel watch .               # Monitor server, auto-checkpoint
 boxel watch . -i 5          # Check every 5 seconds
+boxel watch                 # Watch all configured realms
+boxel watch . ./other-realm # Watch multiple realms simultaneously
 ```
+
+### Multi-Realm Configuration
+When working with multiple realms (e.g., code in one, data in another):
+
+```bash
+boxel realms                # List configured realms
+boxel realms --init         # Create .boxel-workspaces.json
+boxel realms --add ./code --purpose "Card definitions" --patterns "*.gts" --default
+boxel realms --add ./data --purpose "Content instances" --card-types "BlogPost,Product"
+boxel realms --llm          # Output guidance for file placement
+```
+
+Then `boxel watch` monitors all configured realms with independent checkpointing.
 
 ### View & Restore History
 ```bash
 boxel history .             # View checkpoints
 boxel history . -r 3        # Restore to checkpoint #3
+boxel milestone . 1 -n "Before refactor"  # Mark important checkpoint
+```
+
+### Share & Gather (GitHub Workflow)
+```bash
+boxel share . -t /path/to/repo -b branch-name  # Share to GitHub repo
+boxel gather . -s /path/to/repo                 # Pull from GitHub repo
 ```
 
 ### Manage Skills
