@@ -13,6 +13,8 @@ export interface Checkpoint {
   insertions: number;
   deletions: number;
   source: 'local' | 'remote' | 'manual';
+  isMilestone: boolean;
+  milestoneName?: string;
 }
 
 export interface CheckpointChange {
@@ -205,6 +207,7 @@ export class CheckpointManager {
       insertions: 0,
       deletions: 0,
       source,
+      isMilestone: false,
     };
   }
 
@@ -299,6 +302,9 @@ export class CheckpointManager {
       return [];
     }
 
+    // Get all milestones upfront for efficiency
+    const milestones = this.getAllMilestones();
+
     return log.trim().split('\n').map(line => {
       const [hash, shortHash, subject, dateStr] = line.split('|');
 
@@ -315,6 +321,10 @@ export class CheckpointManager {
       // Get stats for this commit
       const stats = this.getCommitStats(hash);
 
+      // Check if this is a milestone
+      const milestoneName = milestones.get(hash);
+      const isMilestone = !!milestoneName;
+
       return {
         hash,
         shortHash,
@@ -323,6 +333,8 @@ export class CheckpointManager {
         date: new Date(dateStr),
         isMajor,
         source,
+        isMilestone,
+        milestoneName,
         ...stats,
       };
     });
@@ -410,6 +422,123 @@ export class CheckpointManager {
 
     // Go back to HEAD
     this.git('checkout', 'HEAD', '--', '.');
+  }
+
+  /**
+   * Mark a checkpoint as a milestone
+   */
+  markMilestone(hashOrIndex: string | number, name: string): { hash: string; name: string } | null {
+    if (!this.isInitialized()) {
+      return null;
+    }
+
+    // Resolve hash from index if needed
+    let hash: string;
+    if (typeof hashOrIndex === 'number') {
+      const checkpoints = this.getCheckpoints(hashOrIndex + 1);
+      if (hashOrIndex < 1 || hashOrIndex > checkpoints.length) {
+        return null;
+      }
+      hash = checkpoints[hashOrIndex - 1].hash;
+    } else {
+      hash = hashOrIndex;
+    }
+
+    // Sanitize name for git tag (replace spaces with dashes, remove special chars)
+    const tagName = `milestone/${name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_.]/g, '')}`;
+
+    try {
+      // Create annotated tag
+      this.git('tag', '-a', tagName, hash, '-m', `Milestone: ${name}`);
+      return { hash, name };
+    } catch (error) {
+      // Tag might already exist
+      return null;
+    }
+  }
+
+  /**
+   * Remove a milestone marker from a checkpoint
+   */
+  unmarkMilestone(hashOrIndex: string | number): boolean {
+    if (!this.isInitialized()) {
+      return false;
+    }
+
+    // Resolve hash from index if needed
+    let hash: string;
+    if (typeof hashOrIndex === 'number') {
+      const checkpoints = this.getCheckpoints(hashOrIndex + 1);
+      if (hashOrIndex < 1 || hashOrIndex > checkpoints.length) {
+        return false;
+      }
+      hash = checkpoints[hashOrIndex - 1].hash;
+    } else {
+      hash = hashOrIndex;
+    }
+
+    // Find tags pointing to this commit
+    const tags = this.getMilestoneTags(hash);
+    if (tags.length === 0) {
+      return false;
+    }
+
+    // Delete all milestone tags for this commit
+    for (const tag of tags) {
+      try {
+        this.git('tag', '-d', tag);
+      } catch {
+        // Ignore errors
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Get milestone tags pointing to a specific commit
+   */
+  private getMilestoneTags(hash: string): string[] {
+    try {
+      const output = this.git('tag', '--points-at', hash);
+      return output.trim().split('\n')
+        .filter(tag => tag.startsWith('milestone/'))
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Get all milestone tags mapped to their commits
+   */
+  private getAllMilestones(): Map<string, string> {
+    const milestones = new Map<string, string>();
+    try {
+      // Get all tags that start with milestone/
+      const tags = this.git('tag', '-l', 'milestone/*');
+      for (const tag of tags.trim().split('\n').filter(Boolean)) {
+        try {
+          const hash = this.git('rev-list', '-1', tag).trim();
+          // Extract name from tag (remove 'milestone/' prefix)
+          const name = tag.replace('milestone/', '').replace(/-/g, ' ');
+          milestones.set(hash, name);
+        } catch {
+          // Ignore invalid tags
+        }
+      }
+    } catch {
+      // No tags
+    }
+    return milestones;
+  }
+
+  /**
+   * Get only milestone checkpoints
+   */
+  getMilestones(): Checkpoint[] {
+    const all = this.getCheckpoints(100);
+    return all.filter(cp => cp.isMilestone);
   }
 
   /**

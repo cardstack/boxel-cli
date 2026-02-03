@@ -1,5 +1,24 @@
 # Boxel CLI - Claude Code Integration
 
+## How to Run Boxel Commands
+
+**IMPORTANT:** In this development repo, the `boxel` CLI is not globally installed. Always run commands using:
+
+```bash
+npm run dev -- <command> [args]
+```
+
+Examples:
+```bash
+npm run dev -- sync .                    # NOT: boxel sync .
+npm run dev -- history ./workspace       # NOT: boxel history ./workspace
+npm run dev -- milestone ./workspace 1 -n "Name"
+```
+
+The `--` separates npm arguments from the CLI arguments. All documentation below shows `boxel <command>` for brevity, but always use `npm run dev -- <command>` when executing.
+
+---
+
 ## Auto-Activate Boxel Development Skill
 
 **IMPORTANT:** When the user is doing ANY of the following, automatically read and follow `.claude/commands/boxel-development.md`:
@@ -78,7 +97,7 @@ npm run dev -- list
 ### Step 5: First Sync
 Help them sync their first workspace:
 ```bash
-npm run dev -- sync @username/workspace
+npm run dev -- sync @username/workspace ./workspace-name
 ```
 
 ---
@@ -128,10 +147,27 @@ boxel sync . --dry-run            # Preview only
 
 ### Watch
 ```bash
-boxel watch .                     # Default: 30s interval, 5s debounce
+boxel watch                       # Watch all configured realms (from .boxel-workspaces.json)
+boxel watch .                     # Watch single workspace
+boxel watch . ./other-realm       # Watch multiple realms simultaneously
 boxel watch . -i 5 -d 3           # Active: 5s interval, 3s debounce
 boxel watch . -q                  # Quiet mode
 ```
+
+**Multi-realm watching:** Useful when code lives in one realm and data in another. Each realm gets its own checkpoint tracking and debouncing.
+
+### Realms (Multi-Realm Configuration)
+```bash
+boxel realms                      # List configured realms
+boxel realms --init               # Create .boxel-workspaces.json
+boxel realms --add ./path         # Add a realm
+boxel realms --add ./code --purpose "Card definitions" --patterns "*.gts" --default
+boxel realms --add ./data --purpose "Data instances" --card-types "BlogPost,Product"
+boxel realms --llm                # Output LLM guidance for file placement
+boxel realms --remove ./path      # Remove a realm
+```
+
+**File placement guidance:** The `--llm` output tells Claude which realm to use for different file types and card types.
 
 ### History & Restore
 ```bash
@@ -157,6 +193,24 @@ boxel create endpoint "Name"      # Create workspace
 boxel pull <url> ./local          # One-way pull
 boxel push ./local <url>          # One-way push
 ```
+
+### Share & Gather (GitHub Workflow)
+```bash
+boxel share . -t /path/to/repo -b branch-name --no-pr   # Share to GitHub repo
+boxel gather . -s /path/to/repo                          # Pull from GitHub repo
+```
+
+**Share** copies workspace state to a GitHub repo branch:
+- Preserves repo-level files (package.json, LICENSE, README, etc.)
+- Skips realm-specific files (.realm.json, index.json, cards-grid.json)
+- Creates branch and commits changes
+
+**Gather** pulls changes from GitHub back to workspace:
+- Symmetric to share
+- Preserves workspace's realm-specific files
+
+**Pushing to GitHub:** Use GitHub Desktop to push branches (no CLI auth configured).
+After share creates the branch locally, open GitHub Desktop and push.
 
 ### `/boxel-development` - Default Vibe Coding Skill
 The **Boxel Development** skill is auto-enabled for vibe coding. It provides comprehensive guidance for:
@@ -197,6 +251,18 @@ boxel history . -r 3              # Restore to #3
 boxel sync . --prefer-local       # ESSENTIAL: sync deletions to server
 ```
 
+### Share Milestone to GitHub
+```bash
+boxel share . -t /path/to/boxel-home -b boxel/feature-name --no-pr
+# Then push via GitHub Desktop
+```
+
+### Gather Updates from GitHub
+```bash
+boxel gather . -s /path/to/boxel-home
+boxel sync . --prefer-local       # Push gathered changes to Boxel server
+```
+
 Or simply:
 ```
 /restore 3
@@ -208,6 +274,26 @@ Or simply:
 # Checkpoints created automatically
 boxel history .                   # View what changed
 ```
+
+### Multi-Realm Development
+When working with multiple realms (e.g., code + data separation):
+
+```bash
+# Configure realms once
+boxel realms --add ./code-realm --purpose "Card definitions" --patterns "*.gts" --default
+boxel realms --add ./data-realm --purpose "Content instances" --card-types "BlogPost,Product"
+
+# Watch all configured realms
+boxel watch
+
+# Check where to put a new file
+boxel realms --llm
+```
+
+**File placement heuristics:**
+- `.gts` files → realm with `*.gts` pattern (usually code realm)
+- Card instances → realm configured for that card type
+- Ambiguous → use the default realm
 
 ---
 

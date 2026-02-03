@@ -119,7 +119,7 @@ async function quickRestore(manager: CheckpointManager, checkpoint: Checkpoint):
 }
 
 function displayHistory(checkpoints: Checkpoint[]): void {
-  console.log(`\n${BOLD}Checkpoint History${RESET}  ${DIM}(${FG_GREEN}↑${RESET}${DIM}=local push, ${FG_CYAN}↓${RESET}${DIM}=server change)${RESET}\n`);
+  console.log(`\n${BOLD}Checkpoint History${RESET}  ${DIM}(${FG_GREEN}↑${RESET}${DIM}=local push, ${FG_CYAN}↓${RESET}${DIM}=server change, ${FG_YELLOW}⭐${RESET}${DIM}=milestone)${RESET}\n`);
 
   checkpoints.forEach((cp, i) => {
     const num = i + 1;
@@ -129,13 +129,15 @@ function displayHistory(checkpoints: Checkpoint[]): void {
                       cp.source === 'remote' ? `${FG_CYAN}↓ SERVER${RESET}` : `${FG_MAGENTA}● MANUAL${RESET}`;
     const date = formatDate(cp.date);
     const stats = `${DIM}(${cp.filesChanged} files)${RESET}`;
+    const milestoneTag = cp.isMilestone ? `${FG_YELLOW}⭐${RESET} ${FG_MAGENTA}[${cp.milestoneName}]${RESET} ` : '';
 
-    console.log(`${numLabel} ${FG_YELLOW}${cp.shortHash}${RESET} ${sourceTag} ${majorTag} ${cp.message} ${stats}`);
+    console.log(`${numLabel} ${FG_YELLOW}${cp.shortHash}${RESET} ${milestoneTag}${sourceTag} ${majorTag} ${cp.message} ${stats}`);
     console.log(`   ${DIM}${date}${RESET}\n`);
   });
 
   console.log(`${DIM}Quick restore: boxel history . -r <number>${RESET}`);
-  console.log(`${DIM}Interactive:   boxel history . -r${RESET}\n`);
+  console.log(`${DIM}Interactive:   boxel history . -r${RESET}`);
+  console.log(`${DIM}Mark milestone: boxel milestone . <number> -n "name"${RESET}\n`);
 }
 
 async function interactiveRestore(
@@ -178,10 +180,11 @@ async function interactiveRestore(
       const majorTag = cp.isMajor ? `${FG_YELLOW}●${RESET}` : `${DIM}○${RESET}`;
       const sourceIcon = cp.source === 'local' ? `${FG_GREEN}↑LOCAL${RESET}` :
                          cp.source === 'remote' ? `${FG_CYAN}↓SRVR${RESET}` : `${FG_MAGENTA}◆MAN${RESET}`;
+      const milestoneIcon = cp.isMilestone ? `${FG_YELLOW}⭐${RESET}` : '';
 
       const line = isSelected
-        ? `${prefix}${numLabel} ${BOLD}${cp.shortHash}${RESET} ${majorTag} ${sourceIcon} ${BOLD}${cp.message}${RESET}`
-        : `${prefix}${numLabel} ${DIM}${cp.shortHash}${RESET} ${majorTag} ${sourceIcon} ${cp.message}`;
+        ? `${prefix}${numLabel} ${BOLD}${cp.shortHash}${RESET} ${milestoneIcon}${majorTag} ${sourceIcon} ${BOLD}${cp.message}${RESET}`
+        : `${prefix}${numLabel} ${DIM}${cp.shortHash}${RESET} ${milestoneIcon}${majorTag} ${sourceIcon} ${cp.message}`;
 
       console.log(line);
     }
@@ -196,6 +199,9 @@ async function interactiveRestore(
     const selected = checkpoints[selectedIndex];
     console.log(`\n${'─'.repeat(60)}`);
     console.log(`${BOLD}Selected:${RESET} ${selected.shortHash} - ${selected.message}`);
+    if (selected.isMilestone) {
+      console.log(`${BOLD}Milestone:${RESET} ${FG_YELLOW}⭐${RESET} ${FG_MAGENTA}${selected.milestoneName}${RESET}`);
+    }
     console.log(`${BOLD}Date:${RESET} ${formatDate(selected.date)}`);
     console.log(`${BOLD}Type:${RESET} ${selected.isMajor ? 'Major' : 'Minor'} | ${BOLD}Source:${RESET} ${formatSource(selected.source)}`);
     console.log(`${BOLD}Changes:${RESET} ${selected.filesChanged} files`);

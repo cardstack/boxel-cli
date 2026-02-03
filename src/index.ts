@@ -14,6 +14,11 @@ import { watchCommand } from './commands/watch.js';
 import { skillsCommand } from './commands/skills.js';
 import { touchCommand } from './commands/touch.js';
 import { editCommand } from './commands/edit.js';
+import { milestoneCommand } from './commands/milestone.js';
+import { shareCommand } from './commands/share.js';
+import { gatherCommand } from './commands/gather.js';
+import { realmsCommand } from './commands/realms.js';
+import { loadConfig } from './lib/realm-config.js';
 
 const program = new Command();
 
@@ -133,12 +138,25 @@ program
 program
   .command('watch')
   .description('Watch for server changes and create checkpoints automatically')
-  .argument('[workspace]', 'Workspace directory (default: .)')
+  .argument('[workspaces...]', 'Workspace directories to watch (default: configured realms or .)')
   .option('-i, --interval <seconds>', 'Check interval in seconds (default: 30)', '30')
   .option('-d, --debounce <seconds>', 'Wait for changes to settle before checkpoint (default: 5)', '5')
   .option('-q, --quiet', 'Only show output when changes detected')
-  .action(async (workspace: string | undefined, options: { interval?: string; debounce?: string; quiet?: boolean }) => {
-    await watchCommand(workspace || '.', {
+  .action(async (workspaces: string[], options: { interval?: string; debounce?: string; quiet?: boolean }) => {
+    let refs = workspaces;
+
+    // If no workspaces provided, try to load from config
+    if (refs.length === 0) {
+      const config = loadConfig();
+      if (config && config.realms.length > 0) {
+        refs = config.realms.map(r => r.path);
+        console.log(`Using configured realms from .boxel-workspaces.json\n`);
+      } else {
+        refs = ['.'];
+      }
+    }
+
+    await watchCommand(refs, {
       interval: options.interval ? parseInt(options.interval) : 30,
       debounce: options.debounce ? parseInt(options.debounce) : 5,
       quiet: options.quiet,
@@ -189,6 +207,93 @@ program
     await editCommand(workspace || '.', files || [], options);
   });
 
+program
+  .command('milestone')
+  .alias('ms')
+  .description('Mark checkpoints as milestones to demarcate major successes')
+  .argument('[workspace]', 'Workspace directory (default: .)')
+  .argument('[checkpoint]', 'Checkpoint number or hash to mark')
+  .option('-n, --name <name>', 'Name for the milestone')
+  .option('-l, --list', 'List all milestones')
+  .option('-r, --remove <ref>', 'Remove milestone from checkpoint (by number or hash)')
+  .action(async (workspace: string | undefined, checkpoint: string | undefined, options: { name?: string; list?: boolean; remove?: string }) => {
+    await milestoneCommand(workspace || '.', options, checkpoint);
+  });
+
+program
+  .command('share')
+  .description('Share workspace state to a GitHub repository via PR')
+  .argument('[workspace]', 'Workspace directory (default: .)')
+  .requiredOption('-t, --target <path>', 'Target git repository path')
+  .option('-m, --milestone <name>', 'Use specific milestone (default: latest or current state)')
+  .option('-s, --subfolder <path>', 'Subfolder in target repo (auto-detected if not specified)')
+  .option('-b, --branch <name>', 'Branch name (auto-generated if not specified)')
+  .option('--title <title>', 'PR title')
+  .option('--dry-run', 'Show what would be done without making changes')
+  .option('--no-pr', 'Skip PR creation, just push the branch')
+  .action(async (workspace: string | undefined, options: {
+    target: string;
+    milestone?: string;
+    subfolder?: string;
+    branch?: string;
+    title?: string;
+    dryRun?: boolean;
+    pr?: boolean;
+  }) => {
+    await shareCommand(workspace || '.', {
+      ...options,
+      noPr: options.pr === false,
+    });
+  });
+
+program
+  .command('gather')
+  .description('Gather changes from a GitHub repository back into workspace')
+  .argument('[workspace]', 'Workspace directory (default: .)')
+  .requiredOption('-s, --source <path>', 'Source git repository path')
+  .option('--subfolder <path>', 'Subfolder in source repo (auto-detected if not specified)')
+  .option('-b, --branch <name>', 'Checkout specific branch before gathering')
+  .option('--dry-run', 'Show what would be done without making changes')
+  .option('--no-checkpoint', 'Skip creating a checkpoint after gathering')
+  .action(async (workspace: string | undefined, options: {
+    source: string;
+    subfolder?: string;
+    branch?: string;
+    dryRun?: boolean;
+    checkpoint?: boolean;
+  }) => {
+    await gatherCommand(workspace || '.', {
+      ...options,
+      noCheckpoint: options.checkpoint === false,
+    });
+  });
+
+program
+  .command('realms')
+  .description('Manage configured realms for multi-realm workflows')
+  .option('--init', 'Initialize .boxel-workspaces.json config file')
+  .option('--add <path>', 'Add a realm to the config')
+  .option('--remove <path>', 'Remove a realm from the config')
+  .option('--purpose <text>', 'Set the purpose/description for the realm (use with --add)')
+  .option('--patterns <list>', 'Comma-separated file patterns for this realm (use with --add)')
+  .option('--card-types <list>', 'Comma-separated card types for this realm (use with --add)')
+  .option('--notes <text>', 'Free-form notes for LLM guidance (use with --add)')
+  .option('--default', 'Set this realm as the default (use with --add)')
+  .option('--llm', 'Output LLM-friendly guidance for file placement')
+  .action(async (options: {
+    init?: boolean;
+    add?: string;
+    remove?: string;
+    purpose?: string;
+    patterns?: string;
+    cardTypes?: string;
+    notes?: string;
+    default?: boolean;
+    llm?: boolean;
+  }) => {
+    await realmsCommand(options);
+  });
+
 // Add help text for environment variables
 program.addHelpText('after', `
 Environment Variables (required):
@@ -228,6 +333,17 @@ Examples:
   boxel touch .                    Touch all files to force re-indexing
   boxel touch . card.gts           Touch specific file
   boxel touch . GrammyAward/       Touch all files in directory
+
+  boxel milestone . 1 -n "v1.0"    Mark checkpoint #1 as milestone
+  boxel milestone . --list         List all milestones
+  boxel milestone . --remove 1     Remove milestone from checkpoint
+
+  boxel share . -t ~/github/repo   Share to GitHub repo (uses latest milestone)
+  boxel share . -t ~/repo -m "v1"  Share specific milestone
+  boxel share . -t ~/repo --dry-run  Preview what would be shared
+
+  boxel gather . -s ~/github/repo  Gather changes from GitHub repo
+  boxel gather . -s ~/repo -b main Gather from specific branch
 `);
 
 program.parse();
