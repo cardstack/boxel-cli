@@ -177,18 +177,36 @@ export class CheckpointManager {
       if (!line) continue;
       
       const statusCode = line.substring(0, 2);
-      const file = line.substring(3);
+      let file = line.substring(3);
 
       // Parse git status codes
       // ' M' or 'M ' = modified
       // 'A ' or 'AM' = added
       // 'D ' = deleted
       // '??' = untracked (treat as added)
+      // 'R ' = renamed (format: "R  old -> new")
+      // 'C ' = copied (treat similar to added)
+      // 'U ' = unmerged (treat as modified)
+      // 'T ' = type changed (treat as modified)
+      
+      // Handle renamed files - extract the new name
+      if (statusCode.includes('R')) {
+        const arrowIndex = file.indexOf(' -> ');
+        if (arrowIndex !== -1) {
+          const oldFile = file.substring(0, arrowIndex);
+          const newFile = file.substring(arrowIndex + 4);
+          // Record both the deletion of old and addition of new
+          changes.push({ file: oldFile, status: 'deleted' });
+          changes.push({ file: newFile, status: 'added' });
+          continue;
+        }
+      }
+
       if (statusCode.includes('D')) {
         changes.push({ file, status: 'deleted' });
-      } else if (statusCode.includes('A') || statusCode === '??') {
+      } else if (statusCode.includes('A') || statusCode === '??' || statusCode.includes('C')) {
         changes.push({ file, status: 'added' });
-      } else if (statusCode.includes('M')) {
+      } else if (statusCode.includes('M') || statusCode.includes('U') || statusCode.includes('T')) {
         changes.push({ file, status: 'modified' });
       }
     }
