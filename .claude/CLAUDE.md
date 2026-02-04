@@ -1,5 +1,11 @@
 # Boxel CLI - Claude Code Integration
 
+## GitHub Repository
+
+**Official repo:** https://github.com/cardstack/boxel-cli
+
+---
+
 ## How to Run Boxel Commands
 
 **IMPORTANT:** In this development repo, the `boxel` CLI is not globally installed. Always run commands using:
@@ -43,61 +49,49 @@ The skill contains comprehensive Boxel development guidance including CardDef/Fi
 
 ## Onboarding Flow
 
-When you detect a new user (no `.env` file or first interaction), guide them through setup:
+When you detect a new user (no profile configured), guide them through setup:
 
-### Step 1: Check Environment
+### Step 1: Check Profile
 ```bash
-# Check if .env exists and has content
-cat .env 2>/dev/null || echo "NOT_CONFIGURED"
+npm run dev -- profile
 ```
 
-### Step 2: Prompt for Environment Choice
-If not configured, ask:
+If no profile exists, run the interactive setup:
 
-```
-Welcome to Boxel CLI! Let's get you set up.
-
-Which environment do you want to use?
-
-1. **Production** (app.boxel.ai) - Live Boxel
-2. **Staging** (realms-staging.stack.cards) - Development/testing
-
-You'll need your Boxel username and password (same as web login).
-
-Your username is your Boxel handle (e.g., `aallen90`, `ctse`). Find it in:
-- **Account panel**: shown as `@username:stack.cards`
-- **Workspace URLs**: `app.boxel.ai/username/workspace-name`
-```
-
-### Step 3: Create .env
-Based on their choice:
-
-**Production:**
-```env
-MATRIX_URL=https://matrix.boxel.ai
-MATRIX_USERNAME=<ask for username>
-MATRIX_PASSWORD=<ask for password>
-REALM_SERVER_URL=https://app.boxel.ai/
-```
-
-**Staging:**
-```env
-MATRIX_URL=https://matrix-staging.stack.cards
-MATRIX_USERNAME=<ask for username>
-MATRIX_PASSWORD=<ask for password>
-REALM_SERVER_URL=https://realms-staging.stack.cards/
-```
-
-### Step 4: Verify & List Workspaces
+### Step 2: Add a Profile
 ```bash
-npm install
+npm run dev -- profile add
+```
+
+This launches an interactive wizard that:
+1. Asks for environment (Production or Staging)
+2. Asks for username and password
+3. Creates the profile in `~/.boxel-cli/profiles.json`
+
+**Non-interactive option:**
+```bash
+# Production
+npm run dev -- profile add -u @username:boxel.ai -p "password" -n "My Prod Account"
+
+# Staging
+npm run dev -- profile add -u @username:stack.cards -p "password" -n "My Staging Account"
+```
+
+### Step 3: Verify & List Workspaces
+```bash
 npm run dev -- list
 ```
 
-### Step 5: First Sync
+### Step 4: First Sync
 Help them sync their first workspace:
 ```bash
 npm run dev -- sync @username/workspace ./workspace-name
+```
+
+### Switching Between Profiles
+```bash
+npm run dev -- profile list              # See all profiles (★ = active)
+npm run dev -- profile switch username   # Switch by partial match
 ```
 
 ---
@@ -145,13 +139,31 @@ boxel sync . --delete             # Sync deletions both ways
 boxel sync . --dry-run            # Preview only
 ```
 
-### Watch
+### Track ⇆ (Local File Watching)
+```bash
+boxel track .                     # Track local edits, auto-checkpoint as you save
+boxel track . -d 5 -i 30          # 5s debounce, 30s min between checkpoints
+boxel track . -q                  # Quiet mode
+```
+
+**Use track when:** Editing locally in IDE/VS Code. Creates checkpoints as you save files.
+**Symbol:** ⇆ (horizontal arrows = local changes)
+
+### Watch ⇅ (Remote Server Watching)
 ```bash
 boxel watch                       # Watch all configured realms (from .boxel-workspaces.json)
 boxel watch .                     # Watch single workspace
 boxel watch . ./other-realm       # Watch multiple realms simultaneously
 boxel watch . -i 5 -d 3           # Active: 5s interval, 3s debounce
 boxel watch . -q                  # Quiet mode
+```
+
+**Use watch when:** Others are editing in Boxel web UI. Pulls their changes and creates checkpoints.
+**Symbol:** ⇅ (vertical arrows = remote server changes)
+
+### Stop
+```bash
+boxel stop                        # Stop all running watch (⇅) and track (⇆) processes
 ```
 
 **Multi-realm watching:** Useful when code lives in one realm and data in another. Each realm gets its own checkpoint tracking and debouncing.
@@ -175,6 +187,7 @@ boxel history .                   # View checkpoints
 boxel history . -r                # Interactive restore
 boxel history . -r 3              # Quick restore to #3
 boxel history . -r abc123         # Restore by hash
+boxel history . -m "Message"      # Create checkpoint with custom message
 ```
 
 ### Skills
@@ -185,6 +198,23 @@ boxel skills --enable "Name"      # Enable a skill
 boxel skills --disable "Name"     # Disable a skill
 boxel skills --export ./project   # Export as Claude commands
 ```
+
+### Profile (Authentication)
+```bash
+boxel profile                     # Show current active profile
+boxel profile list                # List all saved profiles (★ = active)
+boxel profile add                 # Interactive wizard to add profile
+boxel profile add -u @user:boxel.ai -p pass -n "Name"  # Non-interactive
+boxel profile switch <username>   # Switch profile (partial match OK)
+boxel profile remove <profile-id> # Remove a profile
+boxel profile migrate             # Migrate from old .env file
+```
+
+**Profile IDs:** Use Matrix format `@username:domain`
+- Production: `@username:boxel.ai`
+- Staging: `@username:stack.cards`
+
+**Storage:** Profiles stored in `~/.boxel-cli/profiles.json` (permissions: 0600)
 
 ### Other
 ```bash
@@ -373,8 +403,8 @@ Watch waits for changes to settle:
 ### 4. Checkpoint Classification
 - `[MAJOR]` - New files, deleted files, .gts changes, >3 files
 - `[minor]` - Small updates to existing .json files
-- `LOCAL` (↑) - Changes you pushed
-- `SERVER` (↓) - External changes from web UI
+- `LOCAL` ⇆ - Changes from local edits (track command)
+- `SERVER` ⇅ - External changes from web UI (watch command)
 
 ---
 
@@ -400,6 +430,65 @@ Commands accept:
 - `./path` - Local path
 - `@user/workspace` - e.g., `@username/personal`
 - `https://...` - Full URL
+
+---
+
+## Understanding Boxel URLs (Card IDs)
+
+When a user shares a URL like:
+```
+https://app.boxel.ai/tribecaprep/employee-handbook/Document/d8341312-f3a0-442b-a2e5-49c5cdd84695
+```
+
+**This is a Card ID, not a fetchable URL!**
+
+### How to Parse Boxel URLs
+
+| URL Part | Meaning |
+|----------|---------|
+| `app.boxel.ai` | Production server |
+| `tribecaprep` | User/organization |
+| `employee-handbook` | Realm/workspace name |
+| `Document/d8341312-...` | Card type and instance path |
+
+### NEVER Use WebFetch on Boxel URLs
+
+- Boxel realms are **usually private** and require Matrix authentication
+- WebFetch will fail with 401/403 errors
+- The user is referencing content **they expect you to have locally**
+
+### Finding the Local Copy
+
+If the user references a Boxel URL, the file is likely already synced to the local workspace:
+
+1. **Parse the path**: `Document/d8341312-f3a0-442b-a2e5-49c5cdd84695` → local path is `Document/d8341312-f3a0-442b-a2e5-49c5cdd84695.json`
+
+2. **Search the workspace**:
+```bash
+# Find by card ID
+find . -name "d8341312-f3a0-442b-a2e5-49c5cdd84695*"
+
+# Or search for the card type folder
+ls ./Document/
+```
+
+3. **Read the local file** using the Read tool
+
+### Example Workflow
+
+User says: "Check the handbook at https://app.boxel.ai/tribecaprep/employee-handbook/Document/abc123"
+
+**Do this:**
+```
+# Look for local file
+Read ./Document/abc123.json
+```
+
+**NOT this:**
+```
+# This will FAIL - private realm
+WebFetch https://app.boxel.ai/tribecaprep/employee-handbook/Document/abc123
+```
 
 ---
 
@@ -433,13 +522,15 @@ Headers:
 ## Troubleshooting
 
 ### "Authentication failed"
-- Check credentials in `.env`
-- Verify you can log into Boxel web
-- For staging: use `matrix-staging.stack.cards`
+- Check active profile: `boxel profile`
+- Verify credentials: `boxel profile list`
+- Verify you can log into Boxel web with same credentials
+- For staging: ensure profile uses `@username:stack.cards`
 
 ### "No workspace found"
 - Run `boxel list` to see workspaces
 - Use full URL for first sync
+- Ensure correct profile is active for the environment
 
 ### Files keep reverting after restore
 - Stop watch before restoring
@@ -448,4 +539,8 @@ Headers:
 ### Watch not detecting changes
 - Check interval setting
 - Verify server URL
-- Check JWT auth
+- Check active profile: `boxel profile`
+
+### Switching environments (prod/staging)
+- Add profiles for each environment
+- Switch with: `boxel profile switch <username>`

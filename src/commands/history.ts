@@ -21,6 +21,7 @@ const FG_WHITE = `${ESC}[37m`;
 
 interface HistoryOptions {
   restore?: boolean | string;
+  message?: string;
 }
 
 export async function historyCommand(
@@ -35,6 +36,24 @@ export async function historyCommand(
   }
 
   const manager = new CheckpointManager(workspaceDir);
+
+  // Handle --message: create a manual checkpoint
+  if (options.message) {
+    if (!manager.isInitialized()) {
+      manager.init();
+    }
+
+    // Get current files to create a checkpoint of current state
+    const checkpoint = manager.createCheckpoint('manual', [], options.message);
+
+    if (checkpoint) {
+      console.log(`${FG_GREEN}✓${RESET} ${FG_YELLOW}📍${RESET} Checkpoint created: ${FG_YELLOW}${checkpoint.shortHash}${RESET}`);
+      console.log(`  ${checkpoint.message}`);
+    } else {
+      console.log(`${FG_YELLOW}No changes to checkpoint${RESET}`);
+    }
+    return;
+  }
 
   if (!manager.isInitialized()) {
     console.error('No checkpoint history found for this workspace.');
@@ -119,14 +138,14 @@ async function quickRestore(manager: CheckpointManager, checkpoint: Checkpoint):
 }
 
 function displayHistory(checkpoints: Checkpoint[]): void {
-  console.log(`\n${BOLD}Checkpoint History${RESET}  ${DIM}(${FG_GREEN}↑${RESET}${DIM}=local push, ${FG_CYAN}↓${RESET}${DIM}=server change, ${FG_YELLOW}⭐${RESET}${DIM}=milestone)${RESET}\n`);
+  console.log(`\n${BOLD}Checkpoint History${RESET}  ${DIM}(${FG_GREEN}⇆${RESET}${DIM}=local edit, ${FG_CYAN}⇅${RESET}${DIM}=server change, ${FG_YELLOW}⭐${RESET}${DIM}=milestone)${RESET}\n`);
 
   checkpoints.forEach((cp, i) => {
     const num = i + 1;
     const numLabel = num <= 9 ? `${DIM}${num}${RESET}` : ` `;
     const majorTag = cp.isMajor ? `${FG_YELLOW}[MAJOR]${RESET}` : `${DIM}[minor]${RESET}`;
-    const sourceTag = cp.source === 'local' ? `${FG_GREEN}↑ LOCAL${RESET}` :
-                      cp.source === 'remote' ? `${FG_CYAN}↓ SERVER${RESET}` : `${FG_MAGENTA}● MANUAL${RESET}`;
+    const sourceTag = cp.source === 'local' ? `${FG_GREEN}⇆ LOCAL${RESET}` :
+                      cp.source === 'remote' ? `${FG_CYAN}⇅ SERVER${RESET}` : `${FG_MAGENTA}● MANUAL${RESET}`;
     const date = formatDate(cp.date);
     const stats = `${DIM}(${cp.filesChanged} files)${RESET}`;
     const milestoneTag = cp.isMilestone ? `${FG_YELLOW}⭐${RESET} ${FG_MAGENTA}[${cp.milestoneName}]${RESET} ` : '';
@@ -178,8 +197,8 @@ async function interactiveRestore(
       const prefix = isSelected ? `${FG_CYAN}▶${RESET}` : ` `;
       const numLabel = isSelected ? `${BOLD}${numStr}${RESET}` : `${DIM}${numStr}${RESET}`;
       const majorTag = cp.isMajor ? `${FG_YELLOW}●${RESET}` : `${DIM}○${RESET}`;
-      const sourceIcon = cp.source === 'local' ? `${FG_GREEN}↑LOCAL${RESET}` :
-                         cp.source === 'remote' ? `${FG_CYAN}↓SRVR${RESET}` : `${FG_MAGENTA}◆MAN${RESET}`;
+      const sourceIcon = cp.source === 'local' ? `${FG_GREEN}⇆LOCAL${RESET}` :
+                         cp.source === 'remote' ? `${FG_CYAN}⇅SRVR${RESET}` : `${FG_MAGENTA}◆MAN${RESET}`;
       const milestoneIcon = cp.isMilestone ? `${FG_YELLOW}⭐${RESET}` : '';
 
       const line = isSelected
