@@ -223,7 +223,7 @@ export async function trackCommand(
 
         // Skip internal files
         if (filename.startsWith('.boxel-') || filename.includes('.git')) return;
-        if (filename.startsWith('.') && !filename.startsWith('.realm.json')) return;
+        if (filename.startsWith('.') && filename !== '.realm.json') return;
 
         // Debounced check for changes
         checkForChanges();

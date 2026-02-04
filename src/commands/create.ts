@@ -1,4 +1,5 @@
 import { MatrixClient } from '../lib/matrix-client.js';
+import { getProfileManager, formatProfileBadge } from '../lib/profile-manager.js';
 
 interface CreateOptions {
   background?: string;
@@ -41,16 +42,23 @@ export async function createCommand(
   name: string,
   options: CreateOptions,
 ): Promise<void> {
-  const matrixUrl = process.env.MATRIX_URL;
-  const username = process.env.MATRIX_USERNAME;
-  const password = process.env.MATRIX_PASSWORD;
+  // Get credentials from profile manager (falls back to env vars)
+  const profileManager = getProfileManager();
+  const credentials = await profileManager.getActiveCredentials();
 
-  if (!matrixUrl || !username || !password) {
-    console.error('Missing Matrix credentials in environment variables');
+  if (!credentials) {
+    console.error('No credentials found. Run "boxel profile add" or set environment variables.');
     process.exit(1);
   }
 
-  let realmServerUrl = process.env.REALM_SERVER_URL;
+  const { matrixUrl, username, password, realmServerUrl: baseRealmServerUrl, profileId } = credentials;
+
+  // Show active profile if using one
+  if (profileId) {
+    console.log(`${formatProfileBadge(profileId)}\n`);
+  }
+
+  let realmServerUrl = baseRealmServerUrl;
   if (!realmServerUrl) {
     const matrixUrlObj = new URL(matrixUrl);
     if (matrixUrlObj.hostname.startsWith('matrix-')) {

@@ -9,12 +9,20 @@ interface StoppedProcess {
 export async function stopCommand(): Promise<void> {
   console.log('🛑 Stopping all Boxel watchers and trackers...\n');
 
+  // Check platform compatibility
+  if (process.platform === 'win32') {
+    console.log('  The stop command is only supported on Unix-like systems (macOS, Linux).');
+    console.log('  On Windows, use Task Manager to end boxel processes.');
+    return;
+  }
+
   const stopped: StoppedProcess[] = [];
 
   try {
     // Find boxel watch and track processes
+    // Match both development mode (tsx src/index.ts) and installed mode (boxel or node...boxel)
     const result = execSync(
-      `ps aux | grep -E 'tsx.*src/index.ts (watch|track)' | grep -v grep`,
+      `ps aux | grep -E '(tsx.*src/index.ts|boxel|node.*boxel).*(watch|track)' | grep -v grep | grep -v 'stop'`,
       { encoding: 'utf-8' }
     ).trim();
 

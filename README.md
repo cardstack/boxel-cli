@@ -4,7 +4,50 @@
 
 Edit Boxel cards locally with your IDE or AI agent, sync changes instantly, and collaborate seamlessly between web UI and local development.
 
-### Features
+> **Note:** Boxel CLI is developed and tested with [Claude Code](https://claude.ai/code). For the best experience, install Claude Code first and let it guide you through setup.
+
+---
+
+## Installation
+
+```bash
+git clone https://github.com/cardstack/boxel-cli.git
+cd boxel-cli
+npm install && npm run build
+```
+
+Now you can use `npx boxel` (or `boxel` after `npm link`):
+
+```bash
+npx boxel profile add              # Set up your account
+npx boxel list                     # List your workspaces
+npx boxel sync @user/workspace .   # Sync a workspace locally
+```
+
+### With Claude Code (Recommended)
+
+If you have [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed, just start it in the repo:
+
+```bash
+claude
+```
+
+Claude will detect the Boxel CLI project and guide you through setup automatically.
+
+### Global Command (Optional)
+
+To use `boxel` directly without `npx`:
+
+```bash
+npm link
+boxel profile add
+boxel list
+boxel sync .
+```
+
+---
+
+## Features
 
 - **Bidirectional Sync** - Push local changes, pull remote updates, resolve conflicts
 - **Track Mode** - Auto-checkpoint local edits as you type in your IDE
@@ -108,32 +151,19 @@ flowchart TB
 
 ---
 
-## Quick Start
-
-```bash
-# Install
-git clone https://github.com/cardstack/boxel-cli.git
-cd boxel-cli && npm install
-
-# Setup profile (interactive)
-npm run dev -- profile add
-
-# List workspaces
-npm run dev -- list
-
-# Sync a workspace
-npm run dev -- sync @username/workspace ./local-dir
-```
-
 ## Authentication
 
 ### Option 1: Profile Manager (Recommended)
 ```bash
-boxel profile add                    # Interactive setup
-boxel profile add -u @user:boxel.ai -p "pass" -n "Prod"  # Non-interactive
+boxel profile add                    # Interactive setup (recommended)
 boxel profile list                   # Show profiles (★ = active)
 boxel profile switch username        # Switch profile
+
+# Non-interactive (CI/automation only - avoid in shell history)
+BOXEL_PASSWORD="pass" boxel profile add -u @user:boxel.ai -n "Prod"
 ```
+
+> **Security Note:** Avoid passing passwords directly via `-p` flag as they may be exposed in shell history and process listings. Use the interactive wizard or environment variables for credentials.
 
 Profiles stored in `~/.boxel-cli/profiles.json`
 
@@ -486,7 +516,7 @@ npm test                        # Run tests
 npm run lint                    # Check code style
 ```
 
-> **Note:** Use `npm run dev -- <command>` during development. After global install, use `boxel <command>`.
+> **Note:** Use `npm run dev -- <command>` during development (no rebuild needed). After build, use `npx boxel` or `boxel` (after `npm link`).
 
 ### Claude Code Integration
 

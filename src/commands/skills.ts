@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MatrixClient } from '../lib/matrix-client.js';
 import { RealmAuthClient } from '../lib/realm-auth-client.js';
+import { getProfileManager, formatProfileBadge, getEnvironmentFromMatrixId } from '../lib/profile-manager.js';
 
 interface SkillCard {
   id: string;
@@ -210,13 +211,13 @@ export async function skillsCommand(options: SkillsOptions): Promise<void> {
 
   // Refresh skills from server (requires credentials)
   if (options.refresh || manifest.skills.length === 0) {
-    const matrixUrl = process.env.MATRIX_URL;
-    const username = process.env.MATRIX_USERNAME;
-    const password = process.env.MATRIX_PASSWORD;
+    // Get credentials from profile manager (falls back to env vars)
+    const profileManager = getProfileManager();
+    const credentials = await profileManager.getActiveCredentials();
 
-    if (!matrixUrl || !username || !password) {
+    if (!credentials) {
       if (options.refresh) {
-        console.error('Missing required environment variables: MATRIX_URL, MATRIX_USERNAME, MATRIX_PASSWORD');
+        console.error('No credentials found. Run "boxel profile add" or set environment variables.');
         process.exit(1);
       } else {
         console.log('No skills cached. Run "boxel skills --refresh" with credentials to fetch skills.');
@@ -224,8 +225,15 @@ export async function skillsCommand(options: SkillsOptions): Promise<void> {
       }
     }
 
-    // Determine which realms to use
-    const isStaging = matrixUrl.includes('staging');
+    const { matrixUrl, username, password, profileId } = credentials;
+
+    // Show active profile if using one
+    if (profileId) {
+      console.log(`${formatProfileBadge(profileId)}\n`);
+    }
+
+    // Determine which realms to use based on profile environment
+    const isStaging = profileId ? getEnvironmentFromMatrixId(profileId) === 'staging' : matrixUrl.includes('staging');
     const baseRealms = isStaging ? STAGING_REALMS : BASE_REALMS;
     console.log('Fetching skills from Boxel...\n');
 

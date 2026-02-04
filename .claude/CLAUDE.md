@@ -8,20 +8,22 @@
 
 ## How to Run Boxel Commands
 
-**IMPORTANT:** In this development repo, the `boxel` CLI is not globally installed. Always run commands using:
+After `npm install && npm run build`, use `npx boxel`:
 
 ```bash
-npm run dev -- <command> [args]
+npx boxel sync .
+npx boxel history ./workspace
+npx boxel profile add
 ```
 
-Examples:
+Or use `boxel` directly after `npm link`.
+
+**For development** (no rebuild needed after code changes):
 ```bash
-npm run dev -- sync .                    # NOT: boxel sync .
-npm run dev -- history ./workspace       # NOT: boxel history ./workspace
-npm run dev -- milestone ./workspace 1 -n "Name"
+npm run dev -- <command>
 ```
 
-The `--` separates npm arguments from the CLI arguments. All documentation below shows `boxel <command>` for brevity, but always use `npm run dev -- <command>` when executing.
+All documentation below shows `boxel <command>` for brevity.
 
 ---
 
@@ -53,14 +55,14 @@ When you detect a new user (no profile configured), guide them through setup:
 
 ### Step 1: Check Profile
 ```bash
-npm run dev -- profile
+npx boxel profile
 ```
 
 If no profile exists, run the interactive setup:
 
 ### Step 2: Add a Profile
 ```bash
-npm run dev -- profile add
+npx boxel profile add
 ```
 
 This launches an interactive wizard that:
@@ -68,30 +70,29 @@ This launches an interactive wizard that:
 2. Asks for username and password
 3. Creates the profile in `~/.boxel-cli/profiles.json`
 
-**Non-interactive option:**
+**Non-interactive option (CI/automation only):**
 ```bash
-# Production
-npm run dev -- profile add -u @username:boxel.ai -p "password" -n "My Prod Account"
-
-# Staging
-npm run dev -- profile add -u @username:stack.cards -p "password" -n "My Staging Account"
+# Use environment variable to avoid exposing password in shell history
+BOXEL_PASSWORD="password" npx boxel profile add -u @username:boxel.ai -n "My Prod Account"
 ```
+
+> **Security Note:** Avoid passing passwords via `-p` flag as they appear in shell history and process listings. Use the interactive wizard or `BOXEL_PASSWORD` environment variable.
 
 ### Step 3: Verify & List Workspaces
 ```bash
-npm run dev -- list
+npx boxel list
 ```
 
 ### Step 4: First Sync
 Help them sync their first workspace:
 ```bash
-npm run dev -- sync @username/workspace ./workspace-name
+npx boxel sync @username/workspace ./workspace-name
 ```
 
 ### Switching Between Profiles
 ```bash
-npm run dev -- profile list              # See all profiles (★ = active)
-npm run dev -- profile switch username   # Switch by partial match
+npx boxel profile list              # See all profiles (★ = active)
+npx boxel profile switch username   # Switch by partial match
 ```
 
 ---
@@ -203,8 +204,8 @@ boxel skills --export ./project   # Export as Claude commands
 ```bash
 boxel profile                     # Show current active profile
 boxel profile list                # List all saved profiles (★ = active)
-boxel profile add                 # Interactive wizard to add profile
-boxel profile add -u @user:boxel.ai -p pass -n "Name"  # Non-interactive
+boxel profile add                 # Interactive wizard to add profile (recommended)
+# Non-interactive: use BOXEL_PASSWORD env var instead of -p flag for security
 boxel profile switch <username>   # Switch profile (partial match OK)
 boxel profile remove <profile-id> # Remove a profile
 boxel profile migrate             # Migrate from old .env file
