@@ -330,10 +330,17 @@ export abstract class RealmSyncBase {
     const url = this.buildFileUrl(relativePath);
     const jwt = await this.realmAuthClient.getJWT();
 
+    // Use appropriate Accept header based on file type
+    const acceptHeader = relativePath.endsWith('.json')
+      ? SupportedMimeType.CardJson
+      : relativePath.endsWith('.gts')
+        ? SupportedMimeType.CardSource
+        : '*/*';
+
     const response = await fetch(url, {
       headers: {
         Authorization: jwt,
-        Accept: SupportedMimeType.CardSource,
+        Accept: acceptHeader,
       },
     });
 
@@ -507,6 +514,20 @@ export async function validateMatrixEnvVars(workspaceUrl: string): Promise<{
   username: string;
   password: string;
 }> {
+  // Try profile manager first
+  const { getProfileManager } = await import('./profile-manager.js');
+  const profileManager = getProfileManager();
+  const credentials = await profileManager.getActiveCredentials();
+
+  if (credentials) {
+    return {
+      matrixUrl: credentials.matrixUrl,
+      username: credentials.username,
+      password: credentials.password,
+    };
+  }
+
+  // Fall back to environment variables
   const matrixUrl = process.env.MATRIX_URL;
   const envUsername = process.env.MATRIX_USERNAME;
   let password = process.env.MATRIX_PASSWORD;
@@ -515,6 +536,7 @@ export async function validateMatrixEnvVars(workspaceUrl: string): Promise<{
 
   if (!matrixUrl) {
     console.error('MATRIX_URL environment variable is required');
+    console.error('Or run "boxel profile add" to create a profile.');
     process.exit(1);
   }
 

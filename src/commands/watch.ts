@@ -6,6 +6,7 @@ import { resolveWorkspace } from '../lib/workspace-resolver.js';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
 import { createHash } from 'crypto';
 import { getEditingFiles } from '../lib/edit-lock.js';
+import { getProfileManager, formatProfileBadge } from '../lib/profile-manager.js';
 
 interface WatchOptions {
   interval?: number;
@@ -38,14 +39,20 @@ export async function watchCommand(
   const intervalMs = (options.interval || 30) * 1000;
   const debounceMs = (options.debounce ?? 5) * 1000;
 
-  // Initialize Matrix client (shared across all realms)
-  const matrixUrl = process.env.MATRIX_URL;
-  const username = process.env.MATRIX_USERNAME;
-  const password = process.env.MATRIX_PASSWORD;
+  // Get credentials from profile manager (falls back to env vars)
+  const profileManager = getProfileManager();
+  const credentials = await profileManager.getActiveCredentials();
 
-  if (!matrixUrl || !username || !password) {
-    console.error('Missing required environment variables: MATRIX_URL, MATRIX_USERNAME, MATRIX_PASSWORD');
+  if (!credentials) {
+    console.error('No credentials found. Run "boxel profile add" or set environment variables.');
     process.exit(1);
+  }
+
+  const { matrixUrl, username, password, profileId } = credentials;
+
+  // Show active profile if using one
+  if (profileId) {
+    console.log(`${formatProfileBadge(profileId)}\n`);
   }
 
   const matrixClient = new MatrixClient({
@@ -170,7 +177,11 @@ export async function watchCommand(
       const fileResponse = await fetch(fileUrl, {
         headers: {
           'Authorization': realm.jwt,
-          'Accept': file.endsWith('.json') ? 'application/vnd.card+json' : '*/*',
+          'Accept': file.endsWith('.json')
+            ? 'application/vnd.card+json'
+            : file.endsWith('.gts')
+              ? 'application/vnd.card+source'
+              : '*/*',
         },
       });
 
