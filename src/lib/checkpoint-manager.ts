@@ -168,25 +168,26 @@ export class CheckpointManager {
       encoding: 'utf-8',
     });
 
-    if (!status.stdout.trim()) {
+    const statusOutput = status.stdout.trim();
+    if (!statusOutput) {
       return []; // No changes
     }
 
     const changes: CheckpointChange[] = [];
-    for (const line of status.stdout.trim().split('\n')) {
+    for (const line of statusOutput.split('\n')) {
       if (!line) continue;
       
       const statusCode = line.substring(0, 2);
       let file = line.substring(3);
 
-      // Parse git status codes
+      // Parse git status codes (two-character format)
       // ' M' or 'M ' = modified
       // 'A ' or 'AM' = added
-      // 'D ' = deleted
+      // 'D ' or ' D' = deleted
       // '??' = untracked (treat as added)
       // 'R ' = renamed (format: "R  old -> new")
       // 'C ' = copied (treat similar to added)
-      // 'U ' = unmerged (treat as modified)
+      // 'UU' or 'AA' or other U combos = unmerged (treat as modified)
       // 'T ' = type changed (treat as modified)
       
       // Handle renamed files - extract the new name
@@ -202,9 +203,10 @@ export class CheckpointManager {
         }
       }
 
+      // Classify changes based on status code
       if (statusCode.includes('D')) {
         changes.push({ file, status: 'deleted' });
-      } else if (statusCode.includes('A') || statusCode === '??' || statusCode.includes('C')) {
+      } else if (statusCode.includes('A') || statusCode.includes('C') || statusCode === '??') {
         changes.push({ file, status: 'added' });
       } else if (statusCode.includes('M') || statusCode.includes('U') || statusCode.includes('T')) {
         changes.push({ file, status: 'modified' });
