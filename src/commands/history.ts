@@ -43,8 +43,9 @@ export async function historyCommand(
       manager.init();
     }
 
-    // Get current files to create a checkpoint of current state
-    const checkpoint = manager.createCheckpoint('manual', [], options.message);
+    // Detect current changes to create an accurate checkpoint
+    const changes = manager.detectCurrentChanges();
+    const checkpoint = manager.createCheckpoint('manual', changes, options.message);
 
     if (checkpoint) {
       console.log(`${FG_GREEN}✓${RESET} ${FG_YELLOW}📍${RESET} Checkpoint created: ${FG_YELLOW}${checkpoint.shortHash}${RESET}`);

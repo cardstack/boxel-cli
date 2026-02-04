@@ -150,6 +150,53 @@ export class CheckpointManager {
   }
 
   /**
+   * Detect current changes in the workspace by comparing with last checkpoint
+   */
+  detectCurrentChanges(): CheckpointChange[] {
+    if (!this.isInitialized()) {
+      // If not initialized, all files are "added"
+      const files = this.getWorkspaceFiles();
+      return files.map(file => ({ file, status: 'added' as const }));
+    }
+
+    // Sync files to history to get current state
+    this.syncFilesToHistory();
+
+    // Get git status to see what changed
+    const status = spawnSync('git', ['status', '--porcelain'], {
+      cwd: this.gitDir,
+      encoding: 'utf-8',
+    });
+
+    if (!status.stdout.trim()) {
+      return []; // No changes
+    }
+
+    const changes: CheckpointChange[] = [];
+    for (const line of status.stdout.trim().split('\n')) {
+      if (!line) continue;
+      
+      const statusCode = line.substring(0, 2);
+      const file = line.substring(3);
+
+      // Parse git status codes
+      // ' M' or 'M ' = modified
+      // 'A ' or 'AM' = added
+      // 'D ' = deleted
+      // '??' = untracked (treat as added)
+      if (statusCode.includes('D')) {
+        changes.push({ file, status: 'deleted' });
+      } else if (statusCode.includes('A') || statusCode === '??') {
+        changes.push({ file, status: 'added' });
+      } else if (statusCode.includes('M')) {
+        changes.push({ file, status: 'modified' });
+      }
+    }
+
+    return changes;
+  }
+
+  /**
    * Create a checkpoint with the current state
    */
   createCheckpoint(
