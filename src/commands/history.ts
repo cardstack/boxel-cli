@@ -1,7 +1,38 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { CheckpointManager, Checkpoint } from '../lib/checkpoint-manager.js';
+import { CheckpointManager, Checkpoint, CheckpointChange } from '../lib/checkpoint-manager.js';
+
+/**
+ * Scan workspace directory to build a changes array for manual checkpoints.
+ * Marks all current files as 'modified' since we're snapshotting the current state.
+ */
+function scanWorkspaceForChanges(workspaceDir: string): CheckpointChange[] {
+  const changes: CheckpointChange[] = [];
+
+  const scan = (dir: string, prefix = '') => {
+    if (!fs.existsSync(dir)) return;
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      // Skip internal files
+      if (entry.name.startsWith('.boxel-') || entry.name === '.git') continue;
+      if (entry.name.startsWith('.') && entry.name !== '.realm.json') continue;
+
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+      if (entry.isDirectory()) {
+        scan(fullPath, relativePath);
+      } else {
+        changes.push({ file: relativePath, status: 'modified' });
+      }
+    }
+  };
+
+  scan(workspaceDir);
+  return changes;
+}
 
 // ANSI escape codes for terminal control
 const ESC = '\x1b';
@@ -43,8 +74,9 @@ export async function historyCommand(
       manager.init();
     }
 
-    // Get current files to create a checkpoint of current state
-    const checkpoint = manager.createCheckpoint('manual', [], options.message);
+    // Scan workspace to get current files for the checkpoint
+    const changes = scanWorkspaceForChanges(workspaceDir);
+    const checkpoint = manager.createCheckpoint('manual', changes, options.message);
 
     if (checkpoint) {
       console.log(`${FG_GREEN}✓${RESET} ${FG_YELLOW}📍${RESET} Checkpoint created: ${FG_YELLOW}${checkpoint.shortHash}${RESET}`);

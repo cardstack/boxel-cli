@@ -40,6 +40,7 @@ export async function trackCommand(
   let debounceTimer: NodeJS.Timeout | null = null;
   let pendingChanges = new Map<string, 'added' | 'modified' | 'deleted'>();
   let lastCheckpointTime = Date.now();
+  let isCheckingChanges = false; // Mutex to prevent concurrent checkForChanges calls
 
   // Initialize file states
   const initializeFileStates = (dir: string, prefix = '') => {
@@ -131,6 +132,18 @@ export async function trackCommand(
   };
 
   const checkForChanges = () => {
+    // Prevent concurrent execution (fs.watch and setInterval can trigger simultaneously)
+    if (isCheckingChanges) return;
+    isCheckingChanges = true;
+
+    try {
+      checkForChangesImpl();
+    } finally {
+      isCheckingChanges = false;
+    }
+  };
+
+  const checkForChangesImpl = () => {
     const currentFiles = new Map<string, { mtime: number; size: number }>();
 
     const scanDir = (dir: string, prefix = '') => {
@@ -214,11 +227,18 @@ export async function trackCommand(
   };
 
   // Use fs.watch for efficient file watching
+  // Note: recursive option is only supported on macOS and Windows.
+  // On Linux, we rely on the polling fallback (setInterval) below.
   const watchers: fs.FSWatcher[] = [];
+  const isLinux = process.platform === 'linux';
+
+  if (isLinux && !options.quiet) {
+    console.log(`   Note: On Linux, file watching uses polling only (fs.watch recursive not supported)\n`);
+  }
 
   const watchDir = (dir: string) => {
     try {
-      const watcher = fs.watch(dir, { recursive: true }, (eventType, filename) => {
+      const watcher = fs.watch(dir, { recursive: !isLinux }, (eventType, filename) => {
         if (!filename) return;
 
         // Skip internal files
@@ -276,5 +296,6 @@ export async function trackCommand(
 }
 
 function timestamp(): string {
-  return new Date().toLocaleTimeString();
+  const now = new Date();
+  return now.toISOString().substring(11, 19); // HH:MM:SS in UTC
 }
