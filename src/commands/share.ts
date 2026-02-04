@@ -349,18 +349,12 @@ function getFilesRecursive(dir: string): string[] {
   return files;
 }
 
-function detectSubfolder(workspaceDir: string): string | undefined {
-  // Check if workspace contains a specific subfolder structure
-  // For boxel-ai-website, we want to preserve that path
-  const manifest = JSON.parse(fs.readFileSync(path.join(workspaceDir, '.boxel-sync.json'), 'utf-8'));
-  const url = manifest.workspaceUrl || '';
-
-  // Extract workspace name from URL
-  const match = url.match(/\/([^\/]+)\/?$/);
-  if (match) {
-    return match[1];
-  }
-
+function detectSubfolder(_workspaceDir: string): string | undefined {
+  // Don't auto-detect subfolder from workspace URL
+  // This was causing the workspace folder name (e.g., "steady-loon") to be
+  // created as a subfolder in the target repo instead of copying to root.
+  //
+  // If you need to copy to a specific subfolder, use --subfolder explicitly.
   return undefined;
 }
 

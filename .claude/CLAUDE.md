@@ -201,6 +201,7 @@ boxel gather . -s /path/to/repo                          # Pull from GitHub repo
 ```
 
 **Share** copies workspace state to a GitHub repo branch:
+- Copies to repo root by default (use `--subfolder` to target a specific directory)
 - Preserves repo-level files (package.json, LICENSE, README, etc.)
 - Skips realm-specific files (.realm.json, index.json, cards-grid.json)
 - Creates branch and commits changes
