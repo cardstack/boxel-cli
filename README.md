@@ -301,8 +301,13 @@ boxel skills --export .           # Export to .claude/commands/
 boxel track .                     # Start tracking local edits
 # In another terminal or IDE, edit files...
 # Checkpoints created automatically as you save
+
+# IMPORTANT: Track creates LOCAL checkpoints only!
+# When ready to push changes to Boxel server:
 boxel sync . --prefer-local       # Push changes to server
 ```
+
+**Remember:** `track` does NOT sync to server - it only creates local checkpoints for safety. Always run `sync --prefer-local` when you want your changes live.
 
 ### Active Development (with edit lock)
 ```bash

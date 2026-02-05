@@ -329,6 +329,12 @@ program
   .option('-p, --password <password>', 'Password (for add command)')
   .option('-n, --name <displayName>', 'Display name (for add command)')
   .action(async (subcommand?: string, arg?: string, options?: { user?: string; password?: string; name?: string }) => {
+    if (options?.password) {
+      console.warn(
+        'Warning: Supplying a password via -p/--password may expose it in shell history and process listings. ' +
+        'For non-interactive usage, prefer the BOXEL_PASSWORD environment variable or use "boxel profile add" interactively.',
+      );
+    }
     await profileCommand(subcommand, arg, options);
   });
 
@@ -336,7 +342,8 @@ program
 program.addHelpText('after', `
 Authentication:
   Use 'boxel profile' to manage saved credentials (recommended)
-  Or set environment variables: MATRIX_URL, MATRIX_USERNAME, MATRIX_PASSWORD, REALM_SERVER_URL
+  Or set all environment variables (all required):
+    MATRIX_URL, MATRIX_USERNAME, MATRIX_PASSWORD, REALM_SERVER_URL
 
 Workspace References:
   .                  Current directory (must have .boxel-sync.json)
@@ -363,6 +370,11 @@ Examples:
   boxel watch .                    Monitor server, checkpoint changes
   boxel watch . -i 10              Check every 10 seconds
   boxel watch . -q                 Quiet mode (only show changes)
+
+  boxel track .                    Track local edits, auto-checkpoint
+  boxel track . -d 5 -i 30         5s debounce, 30s min between checkpoints
+
+  boxel stop                       Stop all running watch/track processes
 
   boxel pull https://... ./local   One-way pull (for read-only realms)
 

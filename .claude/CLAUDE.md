@@ -99,6 +99,12 @@ npx boxel profile switch username   # Switch by partial match
 
 ## Available Skills
 
+### `/track` - Track Local Edits
+Starts `boxel track` to auto-checkpoint local file changes:
+- Creates checkpoints as you save files in IDE
+- **IMPORTANT:** Track creates LOCAL checkpoints only
+- **After editing, run `boxel sync . --prefer-local` to push to server**
+
 ### `/watch` - Smart Watch
 Starts `boxel watch` with intelligent interval based on context:
 - **Active development** (5s interval, 3s debounce): When editing files
@@ -114,7 +120,7 @@ Complete restore workflow:
 
 ### `/sync` - Smart Sync
 Context-aware bidirectional sync:
-- After local edits → `--prefer-local`
+- After local edits or track → `--prefer-local`
 - After server changes → `--prefer-remote`
 - After restore → `--prefer-local` (essential for syncing deletions)
 
@@ -268,7 +274,19 @@ boxel skills --export .      # Re-export to .claude/commands/
 
 ## Key Workflows
 
-### Active Development Session
+### Local Development with Track (IDE/Agent Editing)
+```bash
+boxel track .                     # Start tracking local edits (auto-checkpoints)
+# ... edit files in IDE or with Claude ...
+# Track creates LOCAL checkpoints as you save
+
+# IMPORTANT: When ready to push changes to Boxel server:
+boxel sync . --prefer-local       # Push your local changes to server
+```
+
+**Remember:** Track does NOT sync to server automatically - it only creates local checkpoints. Always run `sync --prefer-local` when you want your changes live on the server.
+
+### Active Development Session (Watching Server)
 ```bash
 /watch                            # Starts with 5s interval
 # ... edit in Boxel UI or locally ...

@@ -258,16 +258,36 @@ export class ProfileManager {
     const matrixUrl = process.env.MATRIX_URL;
     const username = process.env.MATRIX_USERNAME;
     const password = process.env.MATRIX_PASSWORD;
-    const realmServerUrl = process.env.REALM_SERVER_URL;
+    let realmServerUrl = process.env.REALM_SERVER_URL;
 
-    if (matrixUrl && username && password && realmServerUrl) {
-      return {
-        matrixUrl,
-        username,
-        password,
-        realmServerUrl,
-        profileId: null,
-      };
+    if (matrixUrl && username && password) {
+      // Derive realm server URL from Matrix URL if not explicitly set
+      if (!realmServerUrl) {
+        try {
+          const matrixUrlObj = new URL(matrixUrl);
+          // Common pattern: matrix.X.Y -> app.X.Y or matrix-staging.X.Y -> realms-staging.X.Y
+          if (matrixUrlObj.hostname.startsWith('matrix.')) {
+            realmServerUrl = `${matrixUrlObj.protocol}//app.${matrixUrlObj.hostname.slice(7)}/`;
+          } else if (matrixUrlObj.hostname.startsWith('matrix-staging.')) {
+            realmServerUrl = `${matrixUrlObj.protocol}//realms-staging.${matrixUrlObj.hostname.slice(15)}/`;
+          } else if (matrixUrlObj.hostname.startsWith('matrix-')) {
+            // matrix-X.Y.Z -> X.Y.Z (generic fallback)
+            realmServerUrl = `${matrixUrlObj.protocol}//${matrixUrlObj.hostname.slice(7)}/`;
+          }
+        } catch {
+          // Invalid URL, will return null below
+        }
+      }
+
+      if (realmServerUrl) {
+        return {
+          matrixUrl,
+          username,
+          password,
+          realmServerUrl,
+          profileId: null,
+        };
+      }
     }
 
     return null;
