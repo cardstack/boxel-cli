@@ -39,7 +39,7 @@ export async function trackCommand(
   let workspaceUrl = '';
   let realmAuthClient: RealmAuthClient | null = null;
   let matrixClient: MatrixClient | null = null;
-  let cachedJwt = '';  // Cache JWT to avoid re-fetching on each push
+  // Note: We don't cache JWT - realmAuthClient.getJWT() handles caching and refresh internally
 
   if (options.push) {
     try {
@@ -67,13 +67,13 @@ export async function trackCommand(
         matrixClient,
       );
 
-      // Get JWT once at startup
+      // Verify auth works at startup
       if (options.verbose) {
-        console.log(`[VERBOSE] Getting JWT...`);
+        console.log(`[VERBOSE] Verifying JWT acquisition...`);
       }
-      cachedJwt = await realmAuthClient.getJWT();
+      const initialJwt = await realmAuthClient.getJWT();
       if (options.verbose) {
-        console.log(`[VERBOSE] JWT acquired (${cachedJwt.length} chars)`);
+        console.log(`[VERBOSE] JWT verified (${initialJwt.length} chars)`);
       }
 
       if (options.verbose) {
@@ -218,10 +218,13 @@ export async function trackCommand(
             console.log(`  [VERBOSE] Pushing ${filesToPush.length} files to server...`);
           }
 
+          // Get fresh JWT (handles refresh if expired)
+          const jwt = await realmAuthClient.getJWT();
+
           const result = await uploadWithBatching(
             filesToPush,
             workspaceUrl,
-            cachedJwt,
+            jwt,
             {
               batchSize: 10,
               definitionsFirst: true,

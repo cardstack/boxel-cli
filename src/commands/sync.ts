@@ -304,12 +304,14 @@ class RealmSyncer extends RealmSyncBase {
 
         if (result.failed > 0) {
           this.hasError = true;
-        }
-
-        // Track which files were successfully pushed
-        for (const file of filesToPush) {
-          // Assume success unless we have specific failure info
-          pushedFiles.push(file.relativePath);
+          // Don't mark files as pushed if any failed - manifest would be incorrect
+          // The user should re-run sync to retry failed files
+          console.log(`  ⚠️  ${result.failed} files failed - will retry on next sync`);
+        } else {
+          // Only track files as pushed when entire batch succeeded
+          for (const file of filesToPush) {
+            pushedFiles.push(file.relativePath);
+          }
         }
       }
     }
