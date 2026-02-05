@@ -74,8 +74,9 @@ export async function historyCommand(
       manager.init();
     }
 
-    // Scan workspace to get current files for the checkpoint
-    const changes = scanWorkspaceForChanges(workspaceDir);
+    // Detect current changes to create an accurate checkpoint
+    const changes = manager.detectCurrentChanges();
+
     const checkpoint = manager.createCheckpoint('manual', changes, options.message);
 
     if (checkpoint) {
