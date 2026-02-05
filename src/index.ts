@@ -38,7 +38,8 @@ program
   .option('--delete', 'Delete remote files that do not exist locally')
   .option('--dry-run', 'Show what would be done without making changes')
   .option('--force', 'Upload all files, even if unchanged')
-  .action(async (localDir: string, workspaceUrl: string, options: { delete?: boolean; dryRun?: boolean; force?: boolean }) => {
+  .option('-v, --verbose', 'Show detailed debug output')
+  .action(async (localDir: string, workspaceUrl: string, options: { delete?: boolean; dryRun?: boolean; force?: boolean; verbose?: boolean }) => {
     await pushCommand(localDir, workspaceUrl, options);
   });
 
@@ -49,7 +50,8 @@ program
   .argument('<local-dir>', 'The local directory to sync files to')
   .option('--delete', 'Delete local files that do not exist in the workspace')
   .option('--dry-run', 'Show what would be done without making changes')
-  .action(async (workspaceUrl: string, localDir: string, options: { delete?: boolean; dryRun?: boolean }) => {
+  .option('-v, --verbose', 'Show detailed debug output')
+  .action(async (workspaceUrl: string, localDir: string, options: { delete?: boolean; dryRun?: boolean; verbose?: boolean }) => {
     await pullCommand(workspaceUrl, localDir, options);
   });
 
@@ -72,28 +74,45 @@ program
   .option('--prefer-newest', 'Auto-resolve conflicts by keeping newest version')
   .option('--delete', 'Sync deletions (remove files deleted on either side)')
   .option('--dry-run', 'Show what would be done without making changes')
+  .option('--batch <size>', 'Batch size for uploads (default: 10, "all" for single batch, "1" for one-by-one)')
+  .option('--batch-delay <ms>', 'Delay between batches in milliseconds')
+  .option('--no-definitions-first', 'Do not upload .gts files before .json files')
+  .option('-q, --quiet', 'Suppress per-file output, show batch summaries only')
+  .option('-v, --verbose', 'Show detailed debug output for troubleshooting')
   .action(async (workspace: string | undefined, workspaceUrl: string | undefined, options: {
     preferLocal?: boolean;
     preferRemote?: boolean;
     preferNewest?: boolean;
     delete?: boolean;
     dryRun?: boolean;
+    batch?: string;
+    batchDelay?: string;
+    definitionsFirst?: boolean;
+    quiet?: boolean;
+    verbose?: boolean;
   }) => {
     // Handle different argument patterns
     const ref = workspace || '.';
 
+    // Parse batch options
+    const parsedOptions = {
+      ...options,
+      batch: options.batch === 'all' ? 'all' as const : (options.batch ? parseInt(options.batch, 10) : undefined),
+      batchDelay: options.batchDelay ? parseInt(options.batchDelay, 10) : undefined,
+    };
+
     // If it's a local path and no URL provided, resolve from manifest
     if ((ref === '.' || ref.startsWith('./') || ref.startsWith('/')) && !workspaceUrl) {
       // Will be resolved by sync command using manifest
-      await syncCommand(ref, '', options);
+      await syncCommand(ref, '', parsedOptions);
     } else if (ref.startsWith('@') || ref.startsWith('http')) {
       // @user/workspace or URL - resolve workspace
-      await syncCommand(ref, '', options);
+      await syncCommand(ref, '', parsedOptions);
     } else if (workspaceUrl) {
       // Traditional: local-dir workspace-url
-      await syncCommand(ref, workspaceUrl, options);
+      await syncCommand(ref, workspaceUrl, parsedOptions);
     } else {
-      await syncCommand(ref, '', options);
+      await syncCommand(ref, '', parsedOptions);
     }
   });
 
@@ -146,7 +165,8 @@ program
   .option('-i, --interval <seconds>', 'Check interval in seconds (default: 30)', '30')
   .option('-d, --debounce <seconds>', 'Wait for changes to settle before checkpoint (default: 5)', '5')
   .option('-q, --quiet', 'Only show output when changes detected')
-  .action(async (workspaces: string[], options: { interval?: string; debounce?: string; quiet?: boolean }) => {
+  .option('-v, --verbose', 'Show detailed debug output')
+  .action(async (workspaces: string[], options: { interval?: string; debounce?: string; quiet?: boolean; verbose?: boolean }) => {
     let refs = workspaces;
 
     // If no workspaces provided, try to load from config
@@ -164,6 +184,7 @@ program
       interval: options.interval ? parseInt(options.interval) : 30,
       debounce: options.debounce ? parseInt(options.debounce) : 5,
       quiet: options.quiet,
+      verbose: options.verbose,
     });
   });
 
@@ -174,11 +195,15 @@ program
   .option('-d, --debounce <seconds>', 'Wait for changes to settle before checkpoint (default: 3)', '3')
   .option('-i, --interval <seconds>', 'Minimum seconds between checkpoints (default: 10)', '10')
   .option('-q, --quiet', 'Only show output when checkpoints created')
-  .action(async (workspace: string | undefined, options: { debounce?: string; interval?: string; quiet?: boolean }) => {
+  .option('-p, --push', 'Push changes to server after checkpoint (batch upload)')
+  .option('-v, --verbose', 'Show detailed debug output')
+  .action(async (workspace: string | undefined, options: { debounce?: string; interval?: string; quiet?: boolean; push?: boolean; verbose?: boolean }) => {
     await trackCommand(workspace || '.', {
       debounce: options.debounce ? parseInt(options.debounce) : 3,
       interval: options.interval ? parseInt(options.interval) : 10,
       quiet: options.quiet,
+      push: options.push,
+      verbose: options.verbose,
     });
   });
 
@@ -329,12 +354,6 @@ program
   .option('-p, --password <password>', 'Password (for add command)')
   .option('-n, --name <displayName>', 'Display name (for add command)')
   .action(async (subcommand?: string, arg?: string, options?: { user?: string; password?: string; name?: string }) => {
-    if (options?.password) {
-      console.warn(
-        'Warning: Supplying a password via -p/--password may expose it in shell history and process listings. ' +
-        'For non-interactive usage, prefer the BOXEL_PASSWORD environment variable or use "boxel profile add" interactively.',
-      );
-    }
     await profileCommand(subcommand, arg, options);
   });
 
@@ -342,8 +361,7 @@ program
 program.addHelpText('after', `
 Authentication:
   Use 'boxel profile' to manage saved credentials (recommended)
-  Or set all environment variables (all required):
-    MATRIX_URL, MATRIX_USERNAME, MATRIX_PASSWORD, REALM_SERVER_URL
+  Or set environment variables: MATRIX_URL, MATRIX_USERNAME, MATRIX_PASSWORD, REALM_SERVER_URL
 
 Workspace References:
   .                  Current directory (must have .boxel-sync.json)
@@ -370,11 +388,6 @@ Examples:
   boxel watch .                    Monitor server, checkpoint changes
   boxel watch . -i 10              Check every 10 seconds
   boxel watch . -q                 Quiet mode (only show changes)
-
-  boxel track .                    Track local edits, auto-checkpoint
-  boxel track . -d 5 -i 30         5s debounce, 30s min between checkpoints
-
-  boxel stop                       Stop all running watch/track processes
 
   boxel pull https://... ./local   One-way pull (for read-only realms)
 

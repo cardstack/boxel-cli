@@ -99,12 +99,6 @@ npx boxel profile switch username   # Switch by partial match
 
 ## Available Skills
 
-### `/track` - Track Local Edits
-Starts `boxel track` to auto-checkpoint local file changes:
-- Creates checkpoints as you save files in IDE
-- **IMPORTANT:** Track creates LOCAL checkpoints only
-- **After editing, run `boxel sync . --prefer-local` to push to server**
-
 ### `/watch` - Smart Watch
 Starts `boxel watch` with intelligent interval based on context:
 - **Active development** (5s interval, 3s debounce): When editing files
@@ -120,7 +114,7 @@ Complete restore workflow:
 
 ### `/sync` - Smart Sync
 Context-aware bidirectional sync:
-- After local edits or track → `--prefer-local`
+- After local edits → `--prefer-local`
 - After server changes → `--prefer-remote`
 - After restore → `--prefer-local` (essential for syncing deletions)
 
@@ -151,10 +145,14 @@ boxel sync . --dry-run            # Preview only
 boxel track .                     # Track local edits, auto-checkpoint as you save
 boxel track . -d 5 -i 30          # 5s debounce, 30s min between checkpoints
 boxel track . -q                  # Quiet mode
+boxel track . --push              # Auto-push changes to server (batch upload)
+boxel track . --push -v           # Push with verbose logging
 ```
 
 **Use track when:** Editing locally in IDE/VS Code. Creates checkpoints as you save files.
 **Symbol:** ⇆ (horizontal arrows = local changes)
+
+**--push mode:** Automatically batch uploads changes to the server after each checkpoint using the `/_atomic` endpoint. Efficient for real-time sync workflows.
 
 ### Watch ⇅ (Remote Server Watching)
 ```bash
@@ -163,6 +161,7 @@ boxel watch .                     # Watch single workspace
 boxel watch . ./other-realm       # Watch multiple realms simultaneously
 boxel watch . -i 5 -d 3           # Active: 5s interval, 3s debounce
 boxel watch . -q                  # Quiet mode
+boxel watch . -v                  # Verbose logging
 ```
 
 **Use watch when:** Others are editing in Boxel web UI. Pulls their changes and creates checkpoints.
@@ -238,6 +237,7 @@ boxel gather . -s /path/to/repo                          # Pull from GitHub repo
 ```
 
 **Share** copies workspace state to a GitHub repo branch:
+- Copies to repo root by default (use `--subfolder` to target a specific directory)
 - Preserves repo-level files (package.json, LICENSE, README, etc.)
 - Skips realm-specific files (.realm.json, index.json, cards-grid.json)
 - Creates branch and commits changes
@@ -274,24 +274,20 @@ boxel skills --export .      # Re-export to .claude/commands/
 
 ## Key Workflows
 
-### Local Development with Track (IDE/Agent Editing)
-```bash
-boxel track .                     # Start tracking local edits (auto-checkpoints)
-# ... edit files in IDE or with Claude ...
-# Track creates LOCAL checkpoints as you save
-
-# IMPORTANT: When ready to push changes to Boxel server:
-boxel sync . --prefer-local       # Push your local changes to server
-```
-
-**Remember:** Track does NOT sync to server automatically - it only creates local checkpoints. Always run `sync --prefer-local` when you want your changes live on the server.
-
-### Active Development Session (Watching Server)
+### Active Development Session
 ```bash
 /watch                            # Starts with 5s interval
 # ... edit in Boxel UI or locally ...
 /sync                             # Push/pull changes
 ```
+
+### Real-Time Local-to-Server Sync
+```bash
+boxel track . --push -d 2 -i 5    # Track + auto-push with 2s debounce, 5s interval
+# Edit files in IDE - changes auto-sync to server via batch upload
+```
+
+**Use this when:** You want instant sync to server as you edit locally. Uses the efficient `/_atomic` batch upload endpoint.
 
 ### Undo Server Changes (Restore)
 ```bash

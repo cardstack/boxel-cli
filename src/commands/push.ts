@@ -34,6 +34,7 @@ function saveManifest(localDir: string, manifest: SyncManifest): void {
 interface PushOptions extends SyncOptions {
   deleteRemote?: boolean;
   force?: boolean;
+  verbose?: boolean;
 }
 
 class RealmPusher extends RealmSyncBase {
@@ -182,6 +183,7 @@ export interface PushCommandOptions {
   delete?: boolean;
   dryRun?: boolean;
   force?: boolean;
+  verbose?: boolean;
 }
 
 export async function pushCommand(
@@ -197,6 +199,12 @@ export async function pushCommand(
     process.exit(1);
   }
 
+  if (options.verbose) {
+    console.log(`[VERBOSE] Push: ${localDir} → ${workspaceUrl}`);
+    console.log(`[VERBOSE] Matrix URL: ${matrixUrl}`);
+    console.log(`[VERBOSE] Username: ${username}`);
+  }
+
   try {
     const pusher = new RealmPusher(
       {
@@ -205,6 +213,7 @@ export async function pushCommand(
         deleteRemote: options.delete,
         dryRun: options.dryRun,
         force: options.force,
+        verbose: options.verbose,
       },
       matrixUrl,
       username,

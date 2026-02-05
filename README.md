@@ -205,6 +205,8 @@ boxel pull <url> ./local          # One-way pull (remote → local)
 boxel track .                     # Track local edits, auto-checkpoint
 boxel track . -d 5 -i 30          # 5s debounce, 30s min between checkpoints
 boxel track . -q                  # Quiet mode
+boxel track . --push              # Auto-push to server via batch upload
+boxel track . --push -v           # Push with verbose logging
 
 # Watch REMOTE server changes (pull external updates)
 boxel watch .                     # Watch single workspace (30s default)
@@ -212,6 +214,7 @@ boxel watch . ./other-realm       # Watch multiple realms
 boxel watch                       # Watch all configured realms
 boxel watch . -i 5 -d 3           # 5s interval, 3s debounce
 boxel watch . -q                  # Quiet mode
+boxel watch . -v                  # Verbose logging
 
 # Stop all watchers and trackers
 boxel stop                        # Stops all running watch (⇅) and track (⇆) processes
@@ -225,6 +228,7 @@ boxel status . --pull             # Auto-pull changes
 | Command | Symbol | Direction | Purpose |
 |---------|--------|-----------|---------|
 | `track` | ⇆ | Local → Checkpoints | Backup your IDE edits as you type |
+| `track --push` | ⇆ | Local → Server | Real-time sync to server (batch upload) |
 | `watch` | ⇅ | Server → Local | Pull external changes from Boxel web UI |
 
 ### History & Checkpoints
@@ -301,13 +305,8 @@ boxel skills --export .           # Export to .claude/commands/
 boxel track .                     # Start tracking local edits
 # In another terminal or IDE, edit files...
 # Checkpoints created automatically as you save
-
-# IMPORTANT: Track creates LOCAL checkpoints only!
-# When ready to push changes to Boxel server:
 boxel sync . --prefer-local       # Push changes to server
 ```
-
-**Remember:** `track` does NOT sync to server - it only creates local checkpoints for safety. Always run `sync --prefer-local` when you want your changes live.
 
 ### Active Development (with edit lock)
 ```bash
@@ -508,6 +507,26 @@ cat ./Type/card-id.json
 | Files reverting after restore | Stop watch first, use `--prefer-local` after |
 | Watch not detecting changes | Check interval, verify workspace URL |
 | Definition changes not reflected | `boxel touch . Instance/file.json` |
+| Need more details on errors | Add `-v` or `--verbose` flag |
+
+### Verbose Mode
+
+Most commands support verbose logging with `-v` or `--verbose`:
+
+```bash
+boxel sync . --prefer-local -v    # Detailed sync logging
+boxel track . --push -v           # See batch upload details
+boxel watch . -v                  # JWT and polling info
+boxel push ./local <url> -v       # Upload debugging
+boxel pull <url> ./local -v       # Download debugging
+```
+
+Verbose output shows:
+- Matrix authentication details
+- JWT acquisition timing
+- Batch upload operations (file lists, payload sizes)
+- Server response status codes
+- Error details from `/_atomic` endpoint
 
 ---
 

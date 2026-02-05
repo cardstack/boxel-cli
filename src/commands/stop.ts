@@ -21,9 +21,8 @@ export async function stopCommand(): Promise<void> {
   try {
     // Find boxel watch and track processes
     // Match both development mode (tsx src/index.ts) and installed mode (boxel or node...boxel)
-    // Use more specific pattern with word boundaries to avoid false positives
     const result = execSync(
-      `ps aux | grep -E '(tsx[[:space:]].*src/index\\.ts[[:space:]]+(watch|track)|[[:space:]]boxel[[:space:]]+(watch|track)|node[[:space:]].*boxel[[:space:]]+(watch|track))' | grep -v grep | grep -v '[[:space:]]stop'`,
+      `ps aux | grep -E '(tsx.*src/index.ts|boxel|node.*boxel).*(watch|track)' | grep -v grep | grep -v 'stop'`,
       { encoding: 'utf-8' }
     ).trim();
 

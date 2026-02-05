@@ -158,6 +158,7 @@ async function listProfiles(manager: ProfileManager): Promise<void> {
     const profile = manager.getProfile(id)!;
     const isActive = id === activeId;
     const env = getEnvironmentFromMatrixId(id);
+    const username = getUsernameFromMatrixId(id);
 
     const marker = isActive ? `${FG_GREEN}★${RESET} ` : '  ';
     const envLabel = getEnvironmentShortLabel(env);

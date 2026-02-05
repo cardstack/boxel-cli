@@ -165,9 +165,7 @@ export async function shareCommand(
     'tsconfig.json', 'LICENSE', 'README.md', 'CHANGELOG.md',
     '.boxelignore', '.editorconfig', '.eslintrc.js', '.prettierrc.js',
     '.gitignore', '.npmrc', '.nvmrc',
-    '.realm.json', // Preserve target realm config
-    'index.json', // Preserve target realm index (has realm-specific URLs)
-    'cards-grid.json', // Preserve target realm cards grid
+    '.realm.json', // Preserve target realm config (name, icon, background)
   ]);
   const preserveDirs = new Set(['.git', '.github', '.vscode', 'node_modules']);
 
@@ -188,9 +186,7 @@ export async function shareCommand(
 
   // Files to skip copying (preserve target's version)
   // - .realm.json: realm config (name, icon, background)
-  // - index.json: contains realm-specific URLs and metadata
-  // - cards-grid.json: realm index card
-  const skipCopy = new Set(['.realm.json', 'index.json', 'cards-grid.json']);
+  const skipCopy = new Set(['.realm.json']);
 
   // Copy new files
   for (const file of files) {
@@ -349,18 +345,12 @@ function getFilesRecursive(dir: string): string[] {
   return files;
 }
 
-function detectSubfolder(workspaceDir: string): string | undefined {
-  // Check if workspace contains a specific subfolder structure
-  // For boxel-ai-website, we want to preserve that path
-  const manifest = JSON.parse(fs.readFileSync(path.join(workspaceDir, '.boxel-sync.json'), 'utf-8'));
-  const url = manifest.workspaceUrl || '';
-
-  // Extract workspace name from URL
-  const match = url.match(/\/([^\/]+)\/?$/);
-  if (match) {
-    return match[1];
-  }
-
+function detectSubfolder(_workspaceDir: string): string | undefined {
+  // Don't auto-detect subfolder from workspace URL
+  // This was causing the workspace folder name (e.g., "steady-loon") to be
+  // created as a subfolder in the target repo instead of copying to root.
+  //
+  // If you need to copy to a specific subfolder, use --subfolder explicitly.
   return undefined;
 }
 

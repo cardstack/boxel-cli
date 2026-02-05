@@ -12,6 +12,7 @@ interface WatchOptions {
   interval?: number;
   quiet?: boolean;
   debounce?: number;
+  verbose?: boolean;
 }
 
 interface SyncManifest {
@@ -61,7 +62,13 @@ export async function watchCommand(
     password,
   });
 
+  if (options.verbose) {
+    console.log(`[VERBOSE] Logging into Matrix as ${username}...`);
+  }
   await matrixClient.login();
+  if (options.verbose) {
+    console.log(`[VERBOSE] Matrix login successful`);
+  }
 
   // Initialize all watched realms
   const realms: WatchedRealm[] = [];
@@ -84,8 +91,14 @@ export async function watchCommand(
     const normalizedUrl = workspaceUrl.endsWith('/') ? workspaceUrl : workspaceUrl + '/';
 
     // Get JWT for this realm
+    if (options.verbose) {
+      console.log(`[VERBOSE] Getting JWT for ${normalizedUrl}...`);
+    }
     const realmAuth = new RealmAuthClient(new URL(normalizedUrl), matrixClient);
     const jwt = await realmAuth.getJWT();
+    if (options.verbose) {
+      console.log(`[VERBOSE] JWT acquired (${jwt.length} chars)`);
+    }
 
     // Initialize checkpoint manager
     const checkpointManager = new CheckpointManager(localDir);

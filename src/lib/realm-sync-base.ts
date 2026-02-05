@@ -1,5 +1,10 @@
 import { MatrixClient, passwordFromSeed } from './matrix-client.js';
 import { RealmAuthClient } from './realm-auth-client.js';
+import {
+  FileToUpload,
+  BatchOptions,
+  uploadWithBatching,
+} from './batch-upload.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import ignoreModule from 'ignore';
@@ -401,6 +406,42 @@ export abstract class RealmSyncBase {
       fs.unlinkSync(localPath);
       console.log(`  Deleted: ${localPath}`);
     }
+  }
+
+  /**
+   * Upload multiple files using batch API
+   * Falls back to smaller batches, then individual files on failure
+   */
+  protected async uploadFilesBatched(
+    files: Array<{ relativePath: string; localPath: string; isNew: boolean }>,
+    options: Partial<BatchOptions> = {}
+  ): Promise<{ uploaded: number; failed: number }> {
+    if (files.length === 0) {
+      return { uploaded: 0, failed: 0 };
+    }
+
+    const jwt = await this.realmAuthClient.getJWT();
+
+    const filesToUpload: FileToUpload[] = files.map(f => ({
+      relativePath: f.relativePath,
+      localPath: f.localPath,
+      operation: f.isNew ? 'add' : 'update',
+    }));
+
+    const result = await uploadWithBatching(
+      filesToUpload,
+      this.normalizedRealmUrl,
+      jwt,
+      {
+        ...options,
+        dryRun: this.options.dryRun,
+      }
+    );
+
+    return {
+      uploaded: result.uploaded,
+      failed: result.failed,
+    };
   }
 
   private getIgnoreInstance(dirPath: string): Ignore {

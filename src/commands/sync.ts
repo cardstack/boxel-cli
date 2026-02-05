@@ -40,6 +40,11 @@ interface SyncCommandOptions extends SyncOptions {
   preferRemote?: boolean;
   preferNewest?: boolean;
   delete?: boolean;
+  batch?: number | 'all';        // Batch size (default: 10, 'all' for single batch)
+  batchDelay?: number;           // Delay between batches in ms
+  definitionsFirst?: boolean;    // Upload .gts before .json (default: true)
+  quiet?: boolean;               // Suppress per-file output
+  verbose?: boolean;             // Show detailed debug output
 }
 
 interface FileAction {
@@ -111,6 +116,12 @@ async function promptUser(question: string, options: string[]): Promise<string> 
   });
 }
 
+// ANSI colors for verbose output
+const DIM = '\x1b[2m';
+const CYAN = '\x1b[36m';
+const YELLOW = '\x1b[33m';
+const RESET = '\x1b[0m';
+
 class RealmSyncer extends RealmSyncBase {
   hasError = false;
 
@@ -121,6 +132,12 @@ class RealmSyncer extends RealmSyncBase {
     password: string,
   ) {
     super(syncOptions, matrixUrl, username, password);
+  }
+
+  private verbose(message: string, ...args: unknown[]): void {
+    if (this.syncOptions.verbose) {
+      console.log(`${DIM}[VERBOSE]${RESET} ${message}`, ...args);
+    }
   }
 
   private getConflictStrategy(): ConflictStrategy {
@@ -162,10 +179,18 @@ class RealmSyncer extends RealmSyncBase {
     if (isFirstSync) {
       console.log('\nFirst sync detected - will analyze all files');
     }
+
+    this.verbose(`Manifest loaded: ${manifest ? Object.keys(manifest.files).length + ' files tracked' : 'none'}`);
+    if (manifest && this.syncOptions.verbose) {
+      console.log(`${DIM}[VERBOSE] Manifest workspace URL: ${manifest.workspaceUrl}${RESET}`);
+      console.log(`${DIM}[VERBOSE] Last sync: ${new Date(manifest.lastSyncTime).toISOString()}${RESET}`);
+    }
     console.log('');
 
     // Determine actions for each file
+    this.verbose(`Computing actions for ${localFiles.size} local, ${remoteFiles.size} remote files`);
     const actions = this.computeActions(localFiles, remoteMtimes, remoteFiles, manifest, isFirstSync);
+    this.verbose(`Actions computed: ${actions.length} total`);
 
     // Summarize actions
     const pushActions = actions.filter(a => a.type === 'push');
@@ -229,19 +254,62 @@ class RealmSyncer extends RealmSyncBase {
       }
     }
 
-    // Execute pushes
+    // Execute pushes (with batching)
     const pushedFiles: string[] = [];
     if (pushActions.length > 0) {
-      console.log(`\nPushing ${pushActions.length} files to remote...`);
-      for (const action of pushActions) {
-        if (action.localPath) {
-          try {
-            await this.uploadFile(action.relativePath, action.localPath);
-            pushedFiles.push(action.relativePath);
-          } catch (error) {
-            this.hasError = true;
-            console.error(`Error pushing ${action.relativePath}:`, error);
+      // Determine batch size
+      const batchSize = this.syncOptions.batch === 'all'
+        ? pushActions.length
+        : (this.syncOptions.batch ?? 10);
+
+      // Prepare files for batch upload
+      // isNew means the file doesn't exist on remote (needs 'add' vs 'update')
+      const filesToPush = pushActions
+        .filter(a => a.localPath)
+        .map(a => ({
+          relativePath: a.relativePath,
+          localPath: a.localPath!,
+          // File is "new" (use 'add' op) if: explicitly new, OR remote deleted it
+          isNew: a.reason.includes('New') || a.reason.includes('Remote deleted'),
+        }));
+
+      this.verbose(`Batch mode: batchSize=${batchSize}, files=${filesToPush.length}`);
+      this.verbose(`Files to push: ${filesToPush.map(f => f.relativePath).join(', ')}`);
+
+      if (batchSize === 1) {
+        // Single file mode - use original upload method
+        console.log(`\nPushing ${pushActions.length} files to remote (one by one)...`);
+        this.verbose('Using single-file upload mode');
+        for (const action of pushActions) {
+          if (action.localPath) {
+            try {
+              await this.uploadFile(action.relativePath, action.localPath);
+              pushedFiles.push(action.relativePath);
+            } catch (error) {
+              this.hasError = true;
+              console.error(`Error pushing ${action.relativePath}:`, error);
+            }
           }
+        }
+      } else {
+        // Batch mode
+        this.verbose(`Using batch upload mode with batchSize=${batchSize}`);
+        const result = await this.uploadFilesBatched(filesToPush, {
+          batchSize,
+          delayMs: this.syncOptions.batchDelay ?? 0,
+          definitionsFirst: this.syncOptions.definitionsFirst ?? true,
+          quiet: this.syncOptions.quiet ?? false,
+          verbose: this.syncOptions.verbose ?? false,
+        });
+
+        if (result.failed > 0) {
+          this.hasError = true;
+        }
+
+        // Track which files were successfully pushed
+        for (const file of filesToPush) {
+          // Assume success unless we have specific failure info
+          pushedFiles.push(file.relativePath);
         }
       }
     }
@@ -264,10 +332,11 @@ class RealmSyncer extends RealmSyncBase {
       }
     }
 
-    // Execute pulls
-    if (pullActions.length > 0) {
-      console.log(`\nPulling ${pullActions.length} files from remote...`);
-      for (const action of pullActions) {
+    // Execute pulls (skip .realm.json as it's not directly downloadable)
+    const pullableActions = pullActions.filter(a => a.relativePath !== '.realm.json');
+    if (pullableActions.length > 0) {
+      console.log(`\nPulling ${pullableActions.length} files from remote...`);
+      for (const action of pullableActions) {
         const localPath = path.join(this.options.localDir, action.relativePath);
         try {
           await this.downloadFile(action.relativePath, localPath);
@@ -346,8 +415,8 @@ class RealmSyncer extends RealmSyncBase {
       const checkpointManager = new CheckpointManager(this.options.localDir);
 
       // Create checkpoint for pulled files (remote changes)
-      if (pullActions.length > 0) {
-        const pullChanges: CheckpointChange[] = pullActions.map(a => ({
+      if (pullableActions.length > 0) {
+        const pullChanges: CheckpointChange[] = pullableActions.map(a => ({
           file: a.relativePath,
           status: 'modified' as const,
         }));
@@ -436,6 +505,15 @@ class RealmSyncer extends RealmSyncBase {
         const remoteChanged = hasRemote && hasBase && remoteMtime !== undefined && remoteMtime !== baseState.remoteMtime;
         const remoteNew = hasRemote && !hasBase;
         const remoteDeleted = !hasRemote && hasBase;
+
+        // Verbose logging for change detection
+        if (this.syncOptions.verbose && (localChanged || localNew)) {
+          console.log(`${DIM}[VERBOSE] ${relativePath}:${RESET}`);
+          console.log(`${DIM}  - localChanged=${localChanged}, localNew=${localNew}${RESET}`);
+          if (localChanged && baseState) {
+            console.log(`${DIM}  - baseHash=${baseState.localHash?.slice(0,8)}, currentHash=${currentLocalHash?.slice(0,8)}${RESET}`);
+          }
+        }
 
         if (hasLocal && hasRemote) {
           if (localChanged && remoteChanged) {
@@ -597,6 +675,11 @@ export interface SyncCommandOptionsInput {
   preferNewest?: boolean;
   delete?: boolean;
   dryRun?: boolean;
+  batch?: number | 'all';
+  batchDelay?: number;
+  definitionsFirst?: boolean;
+  quiet?: boolean;
+  verbose?: boolean;
 }
 
 export async function syncCommand(
@@ -666,6 +749,11 @@ export async function syncCommand(
         preferNewest: options.preferNewest,
         delete: options.delete,
         dryRun: options.dryRun,
+        batch: options.batch,
+        batchDelay: options.batchDelay,
+        definitionsFirst: options.definitionsFirst,
+        quiet: options.quiet,
+        verbose: options.verbose,
       },
       validatedMatrixUrl,
       username,

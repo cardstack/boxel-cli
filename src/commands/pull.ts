@@ -125,6 +125,7 @@ class RealmPuller extends RealmSyncBase {
 export interface PullCommandOptions {
   delete?: boolean;
   dryRun?: boolean;
+  verbose?: boolean;
 }
 
 export async function pullCommand(
@@ -134,6 +135,12 @@ export async function pullCommand(
 ): Promise<void> {
   const { matrixUrl, username, password } =
     await validateMatrixEnvVars(workspaceUrl);
+
+  if (options.verbose) {
+    console.log(`[VERBOSE] Pull: ${workspaceUrl} → ${localDir}`);
+    console.log(`[VERBOSE] Matrix URL: ${matrixUrl}`);
+    console.log(`[VERBOSE] Username: ${username}`);
+  }
 
   try {
     const puller = new RealmPuller(
