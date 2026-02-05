@@ -1,7 +1,38 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import { CheckpointManager, Checkpoint } from '../lib/checkpoint-manager.js';
+import { CheckpointManager, Checkpoint, CheckpointChange } from '../lib/checkpoint-manager.js';
+
+/**
+ * Scan workspace directory to build a changes array for manual checkpoints.
+ * Marks all current files as 'modified' since we're snapshotting the current state.
+ */
+function scanWorkspaceForChanges(workspaceDir: string): CheckpointChange[] {
+  const changes: CheckpointChange[] = [];
+
+  const scan = (dir: string, prefix = '') => {
+    if (!fs.existsSync(dir)) return;
+
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      // Skip internal files
+      if (entry.name.startsWith('.boxel-') || entry.name === '.git') continue;
+      if (entry.name.startsWith('.') && entry.name !== '.realm.json') continue;
+
+      const fullPath = path.join(dir, entry.name);
+      const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+
+      if (entry.isDirectory()) {
+        scan(fullPath, relativePath);
+      } else {
+        changes.push({ file: relativePath, status: 'modified' });
+      }
+    }
+  };
+
+  scan(workspaceDir);
+  return changes;
+}
 
 // ANSI escape codes for terminal control
 const ESC = '\x1b';
@@ -21,6 +52,7 @@ const FG_WHITE = `${ESC}[37m`;
 
 interface HistoryOptions {
   restore?: boolean | string;
+  message?: string;
 }
 
 export async function historyCommand(
@@ -35,6 +67,26 @@ export async function historyCommand(
   }
 
   const manager = new CheckpointManager(workspaceDir);
+
+  // Handle --message: create a manual checkpoint
+  if (options.message) {
+    if (!manager.isInitialized()) {
+      manager.init();
+    }
+
+    // Detect current changes to create an accurate checkpoint
+    const changes = manager.detectCurrentChanges();
+
+    const checkpoint = manager.createCheckpoint('manual', changes, options.message);
+
+    if (checkpoint) {
+      console.log(`${FG_GREEN}✓${RESET} ${FG_YELLOW}📍${RESET} Checkpoint created: ${FG_YELLOW}${checkpoint.shortHash}${RESET}`);
+      console.log(`  ${checkpoint.message}`);
+    } else {
+      console.log(`${FG_YELLOW}No changes to checkpoint${RESET}`);
+    }
+    return;
+  }
 
   if (!manager.isInitialized()) {
     console.error('No checkpoint history found for this workspace.');
@@ -119,14 +171,14 @@ async function quickRestore(manager: CheckpointManager, checkpoint: Checkpoint):
 }
 
 function displayHistory(checkpoints: Checkpoint[]): void {
-  console.log(`\n${BOLD}Checkpoint History${RESET}  ${DIM}(${FG_GREEN}↑${RESET}${DIM}=local push, ${FG_CYAN}↓${RESET}${DIM}=server change, ${FG_YELLOW}⭐${RESET}${DIM}=milestone)${RESET}\n`);
+  console.log(`\n${BOLD}Checkpoint History${RESET}  ${DIM}(${FG_GREEN}⇆${RESET}${DIM}=local edit, ${FG_CYAN}⇅${RESET}${DIM}=server change, ${FG_YELLOW}⭐${RESET}${DIM}=milestone)${RESET}\n`);
 
   checkpoints.forEach((cp, i) => {
     const num = i + 1;
     const numLabel = num <= 9 ? `${DIM}${num}${RESET}` : ` `;
     const majorTag = cp.isMajor ? `${FG_YELLOW}[MAJOR]${RESET}` : `${DIM}[minor]${RESET}`;
-    const sourceTag = cp.source === 'local' ? `${FG_GREEN}↑ LOCAL${RESET}` :
-                      cp.source === 'remote' ? `${FG_CYAN}↓ SERVER${RESET}` : `${FG_MAGENTA}● MANUAL${RESET}`;
+    const sourceTag = cp.source === 'local' ? `${FG_GREEN}⇆ LOCAL${RESET}` :
+                      cp.source === 'remote' ? `${FG_CYAN}⇅ SERVER${RESET}` : `${FG_MAGENTA}● MANUAL${RESET}`;
     const date = formatDate(cp.date);
     const stats = `${DIM}(${cp.filesChanged} files)${RESET}`;
     const milestoneTag = cp.isMilestone ? `${FG_YELLOW}⭐${RESET} ${FG_MAGENTA}[${cp.milestoneName}]${RESET} ` : '';
@@ -178,8 +230,8 @@ async function interactiveRestore(
       const prefix = isSelected ? `${FG_CYAN}▶${RESET}` : ` `;
       const numLabel = isSelected ? `${BOLD}${numStr}${RESET}` : `${DIM}${numStr}${RESET}`;
       const majorTag = cp.isMajor ? `${FG_YELLOW}●${RESET}` : `${DIM}○${RESET}`;
-      const sourceIcon = cp.source === 'local' ? `${FG_GREEN}↑LOCAL${RESET}` :
-                         cp.source === 'remote' ? `${FG_CYAN}↓SRVR${RESET}` : `${FG_MAGENTA}◆MAN${RESET}`;
+      const sourceIcon = cp.source === 'local' ? `${FG_GREEN}⇆LOCAL${RESET}` :
+                         cp.source === 'remote' ? `${FG_CYAN}⇅SRVR${RESET}` : `${FG_MAGENTA}◆MAN${RESET}`;
       const milestoneIcon = cp.isMilestone ? `${FG_YELLOW}⭐${RESET}` : '';
 
       const line = isSelected

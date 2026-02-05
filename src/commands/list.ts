@@ -1,4 +1,5 @@
 import { MatrixClient } from '../lib/matrix-client.js';
+import { getProfileManager, formatProfileBadge } from '../lib/profile-manager.js';
 
 interface RealmInfo {
   url: string;
@@ -91,39 +92,23 @@ async function fetchRealmInfo(realmUrl: string, token: string): Promise<RealmInf
 }
 
 export async function listCommand(options: ListCommandOptions): Promise<void> {
-  const matrixUrl = process.env.MATRIX_URL;
-  const username = process.env.MATRIX_USERNAME;
-  const password = process.env.MATRIX_PASSWORD;
+  // Get credentials from profile manager (falls back to env vars)
+  const profileManager = getProfileManager();
+  const credentials = await profileManager.getActiveCredentials();
 
-  if (!matrixUrl) {
-    console.error('MATRIX_URL environment variable is required');
+  if (!credentials) {
+    console.error('No credentials found. Run "boxel profile add" or set environment variables.');
     process.exit(1);
   }
 
-  if (!username || !password) {
-    console.error('MATRIX_USERNAME and MATRIX_PASSWORD environment variables are required');
-    process.exit(1);
+  const { matrixUrl, username, password, realmServerUrl: baseRealmServerUrl, profileId } = credentials;
+
+  // Show active profile if using one
+  if (profileId) {
+    console.log(`${formatProfileBadge(profileId)}\n`);
   }
 
-  // Derive realm server URL from Matrix URL
-  // Matrix URL like https://matrix.boxel.ai -> Realm server https://app.boxel.ai
-  // Or use REALM_SERVER_URL env var if set
-  let realmServerUrl = process.env.REALM_SERVER_URL;
-  if (!realmServerUrl) {
-    // Try to derive from matrix URL
-    const matrixUrlObj = new URL(matrixUrl);
-    // Common pattern: matrix.X.Y -> app.X.Y or X.Y
-    if (matrixUrlObj.hostname.startsWith('matrix.')) {
-      realmServerUrl = `${matrixUrlObj.protocol}//app.${matrixUrlObj.hostname.slice(7)}/`;
-    } else if (matrixUrlObj.hostname.startsWith('matrix-')) {
-      // matrix-staging.stack.cards -> staging.stack.cards
-      realmServerUrl = `${matrixUrlObj.protocol}//${matrixUrlObj.hostname.slice(7)}/`;
-    } else {
-      console.error('Could not derive realm server URL from MATRIX_URL.');
-      console.error('Please set REALM_SERVER_URL environment variable.');
-      process.exit(1);
-    }
-  }
+  let realmServerUrl = baseRealmServerUrl;
 
   // Ensure trailing slash
   if (!realmServerUrl.endsWith('/')) {

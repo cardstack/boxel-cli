@@ -11,6 +11,8 @@ import { statusCommand } from './commands/status.js';
 import { createCommand } from './commands/create.js';
 import { historyCommand } from './commands/history.js';
 import { watchCommand } from './commands/watch.js';
+import { trackCommand } from './commands/track.js';
+import { stopCommand } from './commands/stop.js';
 import { skillsCommand } from './commands/skills.js';
 import { touchCommand } from './commands/touch.js';
 import { editCommand } from './commands/edit.js';
@@ -18,6 +20,7 @@ import { milestoneCommand } from './commands/milestone.js';
 import { shareCommand } from './commands/share.js';
 import { gatherCommand } from './commands/gather.js';
 import { realmsCommand } from './commands/realms.js';
+import { profileCommand } from './commands/profile.js';
 import { loadConfig } from './lib/realm-config.js';
 
 const program = new Command();
@@ -120,7 +123,8 @@ program
   .description('View and restore checkpoint history')
   .argument('[workspace]', 'Workspace directory (default: .)')
   .option('-r, --restore [number]', 'Restore a checkpoint (optionally by number or hash)')
-  .action(async (workspace: string | undefined, options: { restore?: boolean | string }) => {
+  .option('-m, --message <message>', 'Create a manual checkpoint with a custom message')
+  .action(async (workspace: string | undefined, options: { restore?: boolean | string; message?: string }) => {
     await historyCommand(workspace || '.', options);
   });
 
@@ -161,6 +165,28 @@ program
       debounce: options.debounce ? parseInt(options.debounce) : 5,
       quiet: options.quiet,
     });
+  });
+
+program
+  .command('track')
+  .description('Track local file changes and create checkpoints automatically')
+  .argument('[workspace]', 'Workspace directory to track (default: .)')
+  .option('-d, --debounce <seconds>', 'Wait for changes to settle before checkpoint (default: 3)', '3')
+  .option('-i, --interval <seconds>', 'Minimum seconds between checkpoints (default: 10)', '10')
+  .option('-q, --quiet', 'Only show output when checkpoints created')
+  .action(async (workspace: string | undefined, options: { debounce?: string; interval?: string; quiet?: boolean }) => {
+    await trackCommand(workspace || '.', {
+      debounce: options.debounce ? parseInt(options.debounce) : 3,
+      interval: options.interval ? parseInt(options.interval) : 10,
+      quiet: options.quiet,
+    });
+  });
+
+program
+  .command('stop')
+  .description('Stop all running watch and track processes')
+  .action(async () => {
+    await stopCommand();
   });
 
 program
@@ -294,13 +320,30 @@ program
     await realmsCommand(options);
   });
 
+program
+  .command('profile')
+  .description('Manage saved profiles for different users/environments')
+  .argument('[subcommand]', 'list | add | switch | remove | migrate')
+  .argument('[arg]', 'Profile ID (for switch/remove)')
+  .option('-u, --user <matrixId>', 'Matrix user ID (e.g., @user:boxel.ai)')
+  .option('-p, --password <password>', 'Password (for add command)')
+  .option('-n, --name <displayName>', 'Display name (for add command)')
+  .action(async (subcommand?: string, arg?: string, options?: { user?: string; password?: string; name?: string }) => {
+    if (options?.password) {
+      console.warn(
+        'Warning: Supplying a password via -p/--password may expose it in shell history and process listings. ' +
+        'For non-interactive usage, prefer the BOXEL_PASSWORD environment variable or use "boxel profile add" interactively.',
+      );
+    }
+    await profileCommand(subcommand, arg, options);
+  });
+
 // Add help text for environment variables
 program.addHelpText('after', `
-Environment Variables (required):
-  MATRIX_URL         The Matrix server URL
-  MATRIX_USERNAME    Your Matrix username
-  MATRIX_PASSWORD    Your Matrix password (or use REALM_SECRET_SEED)
-  REALM_SERVER_URL   The realm server URL (for @user/workspace resolution)
+Authentication:
+  Use 'boxel profile' to manage saved credentials (recommended)
+  Or set all environment variables (all required):
+    MATRIX_URL, MATRIX_USERNAME, MATRIX_PASSWORD, REALM_SERVER_URL
 
 Workspace References:
   .                  Current directory (must have .boxel-sync.json)
@@ -328,6 +371,11 @@ Examples:
   boxel watch . -i 10              Check every 10 seconds
   boxel watch . -q                 Quiet mode (only show changes)
 
+  boxel track .                    Track local edits, auto-checkpoint
+  boxel track . -d 5 -i 30         5s debounce, 30s min between checkpoints
+
+  boxel stop                       Stop all running watch/track processes
+
   boxel pull https://... ./local   One-way pull (for read-only realms)
 
   boxel touch .                    Touch all files to force re-indexing
@@ -344,6 +392,12 @@ Examples:
 
   boxel gather . -s ~/github/repo  Gather changes from GitHub repo
   boxel gather . -s ~/repo -b main Gather from specific branch
+
+  boxel profile                    Show current profile
+  boxel profile list               List all saved profiles
+  boxel profile add                Add a new profile (interactive)
+  boxel profile switch <id>        Switch to a different profile
+  boxel profile migrate            Import credentials from .env
 `);
 
 program.parse();

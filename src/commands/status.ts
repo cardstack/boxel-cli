@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { MatrixClient } from '../lib/matrix-client.js';
 import { RealmAuthClient } from '../lib/realm-auth-client.js';
 import { resolveWorkspace, getAllWorkspacesStatus } from '../lib/workspace-resolver.js';
+import { getProfileManager, formatProfileBadge } from '../lib/profile-manager.js';
 
 interface SyncManifest {
   workspaceUrl: string;
@@ -26,13 +27,20 @@ export async function statusCommand(
   workspaceRef: string | undefined,
   options: { pull?: boolean; all?: boolean }
 ): Promise<void> {
-  const matrixUrl = process.env.MATRIX_URL;
-  const matrixUsername = process.env.MATRIX_USERNAME;
-  const matrixPassword = process.env.MATRIX_PASSWORD;
+  // Get credentials from profile manager (falls back to env vars)
+  const profileManager = getProfileManager();
+  const credentials = await profileManager.getActiveCredentials();
 
-  if (!matrixUrl || !matrixUsername || !matrixPassword) {
-    console.error('Missing Matrix credentials in environment variables');
+  if (!credentials) {
+    console.error('No credentials found. Run "boxel profile add" or set environment variables.');
     process.exit(1);
+  }
+
+  const { matrixUrl, username: matrixUsername, password: matrixPassword, profileId } = credentials;
+
+  // Show active profile if using one
+  if (profileId) {
+    console.log(`${formatProfileBadge(profileId)}\n`);
   }
 
   // Authenticate

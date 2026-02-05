@@ -121,7 +121,7 @@ export async function watchCommand(
   }
 
   // Display what we're watching
-  console.log(`👁  Watching ${realms.length} realm${realms.length > 1 ? 's' : ''}:`);
+  console.log(`⇅  Watching ${realms.length} realm${realms.length > 1 ? 's' : ''} (remote):`);
   for (const realm of realms) {
     console.log(`   ${realm.name} → ${realm.localDir}`);
   }
@@ -336,7 +336,7 @@ export async function watchCommand(
         clearTimeout(realm.debounceTimer);
       }
     }
-    console.log('\n\n👁  Watch stopped');
+    console.log('\n\n⇅  Watch stopped');
     process.exit(0);
   });
 
