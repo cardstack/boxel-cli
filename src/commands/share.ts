@@ -165,9 +165,7 @@ export async function shareCommand(
     'tsconfig.json', 'LICENSE', 'README.md', 'CHANGELOG.md',
     '.boxelignore', '.editorconfig', '.eslintrc.js', '.prettierrc.js',
     '.gitignore', '.npmrc', '.nvmrc',
-    '.realm.json', // Preserve target realm config
-    'index.json', // Preserve target realm index (has realm-specific URLs)
-    'cards-grid.json', // Preserve target realm cards grid
+    '.realm.json', // Preserve target realm config (name, icon, background)
   ]);
   const preserveDirs = new Set(['.git', '.github', '.vscode', 'node_modules']);
 
@@ -188,9 +186,7 @@ export async function shareCommand(
 
   // Files to skip copying (preserve target's version)
   // - .realm.json: realm config (name, icon, background)
-  // - index.json: contains realm-specific URLs and metadata
-  // - cards-grid.json: realm index card
-  const skipCopy = new Set(['.realm.json', 'index.json', 'cards-grid.json']);
+  const skipCopy = new Set(['.realm.json']);
 
   // Copy new files
   for (const file of files) {
