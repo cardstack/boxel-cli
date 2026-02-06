@@ -22,7 +22,7 @@ interface WatchedRealm {
   name: string;
   localDir: string;
   workspaceUrl: string;
-  jwt: string;
+  realmAuthClient: RealmAuthClient;  // Store client for JWT refresh support
   checkpointManager: CheckpointManager;
   lastKnownState: Record<string, number>;
   pendingChanges: Map<string, { status: 'added' | 'modified' | 'deleted'; mtime: number }>;
@@ -87,14 +87,15 @@ export async function watchCommand(
 
     const normalizedUrl = workspaceUrl.endsWith('/') ? workspaceUrl : workspaceUrl + '/';
 
-    // Get JWT for this realm
+    // Create realm auth client (handles JWT caching and refresh internally)
     if (options.verbose) {
-      console.log(`[VERBOSE] Getting JWT for ${normalizedUrl}...`);
+      console.log(`[VERBOSE] Creating RealmAuthClient for ${normalizedUrl}...`);
     }
-    const realmAuth = new RealmAuthClient(new URL(normalizedUrl), matrixClient);
-    const jwt = await realmAuth.getJWT();
+    const realmAuthClient = new RealmAuthClient(new URL(normalizedUrl), matrixClient);
+    // Verify we can get a JWT (this also caches it)
+    const initialJwt = await realmAuthClient.getJWT();
     if (options.verbose) {
-      console.log(`[VERBOSE] JWT acquired (${jwt.length} chars)`);
+      console.log(`[VERBOSE] Initial JWT acquired (${initialJwt.length} chars)`);
     }
 
     // Initialize checkpoint manager
@@ -123,7 +124,7 @@ export async function watchCommand(
       name,
       localDir,
       workspaceUrl: normalizedUrl,
-      jwt,
+      realmAuthClient,
       checkpointManager,
       lastKnownState,
       pendingChanges: new Map(),
@@ -184,11 +185,14 @@ export async function watchCommand(
 
     console.log(`  Pulling changes...`);
 
+    // Get fresh JWT (handles refresh if expired)
+    const jwt = await realm.realmAuthClient.getJWT();
+
     for (const file of [...newFiles, ...modifiedFiles]) {
       const fileUrl = `${realm.workspaceUrl}${file}`;
       const fileResponse = await fetch(fileUrl, {
         headers: {
-          'Authorization': realm.jwt,
+          'Authorization': jwt,
           'Accept': file.endsWith('.json')
             ? 'application/vnd.card+json'
             : file.endsWith('.gts')
@@ -247,10 +251,13 @@ export async function watchCommand(
 
   const checkRealmForChanges = async (realm: WatchedRealm) => {
     try {
+      // Get fresh JWT (handles refresh if expired)
+      const jwt = await realm.realmAuthClient.getJWT();
+
       const mtimesUrl = `${realm.workspaceUrl}_mtimes`;
       const response = await fetch(mtimesUrl, {
         headers: {
-          'Authorization': realm.jwt,
+          'Authorization': jwt,
           'Accept': 'application/vnd.api+json',
         },
       });

@@ -22,6 +22,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Claude Code (user-specific settings)
+.claude/settings.local.json
+
 # Test workspaces
 test-workspace/
 *-workspace/

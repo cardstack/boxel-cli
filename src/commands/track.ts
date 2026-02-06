@@ -332,11 +332,20 @@ export async function trackCommand(
   };
 
   // Use fs.watch for efficient file watching
+  // Note: recursive: true is not reliably supported on Linux
+  const isLinux = process.platform === 'linux';
   const watchers: fs.FSWatcher[] = [];
+
+  if (isLinux && !options.quiet) {
+    console.log('Note: Recursive file watching is limited on Linux. Using polling as primary method.');
+  }
 
   const watchDir = (dir: string) => {
     try {
-      const watcher = fs.watch(dir, { recursive: true }, (eventType, filename) => {
+      // On Linux, don't use recursive option as it may throw ERR_FEATURE_UNAVAILABLE_ON_PLATFORM
+      const watchOptions: fs.WatchOptions = isLinux ? {} : { recursive: true };
+
+      const watcher = fs.watch(dir, watchOptions, (eventType, filename) => {
         if (!filename) return;
 
         // Skip internal files
@@ -355,7 +364,10 @@ export async function trackCommand(
 
       watchers.push(watcher);
     } catch (error) {
-      console.error(`Failed to watch directory:`, error);
+      // On platforms where fs.watch fails, we rely on polling
+      if (!options.quiet) {
+        console.log('File system watching unavailable, using polling only.');
+      }
     }
   };
 
