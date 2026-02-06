@@ -689,15 +689,6 @@ export async function syncCommand(
   explicitUrl: string,
   options: SyncCommandOptionsInput,
 ): Promise<void> {
-  const matrixUrl = process.env.MATRIX_URL;
-  const matrixUsername = process.env.MATRIX_USERNAME;
-  const matrixPassword = process.env.MATRIX_PASSWORD;
-
-  if (!matrixUrl || !matrixUsername || !matrixPassword) {
-    console.error('Missing Matrix credentials in environment variables');
-    process.exit(1);
-  }
-
   let localDir: string;
   let workspaceUrl: string;
 
@@ -713,10 +704,12 @@ export async function syncCommand(
     // Need to create matrix client for @user/workspace resolution
     let matrixClient: MatrixClient | undefined;
     if (workspaceRef.startsWith('@')) {
+      // Get credentials from profile manager or env vars
+      const creds = await validateMatrixEnvVars('');
       matrixClient = new MatrixClient({
-        matrixURL: new URL(matrixUrl),
-        username: matrixUsername,
-        password: matrixPassword
+        matrixURL: new URL(creds.matrixUrl),
+        username: creds.username,
+        password: creds.password
       });
       await matrixClient.login();
     }
@@ -731,7 +724,7 @@ export async function syncCommand(
     }
   }
 
-  // Validate with the resolved URL
+  // Validate with the resolved URL (uses profile manager or env vars)
   const { matrixUrl: validatedMatrixUrl, username, password } =
     await validateMatrixEnvVars(workspaceUrl);
 

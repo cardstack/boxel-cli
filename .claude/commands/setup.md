@@ -33,7 +33,7 @@ This wizard will:
 
 Ask the user for:
 - **Environment**: Production (app.boxel.ai) or Staging (realms-staging.stack.cards)
-- **Username**: Their Boxel handle (e.g., `aallen90`, `ctse`). Found in Account panel as `@username:stack.cards` or in workspace URLs like `app.boxel.ai/username/workspace-name`
+- **Username**: Their Boxel handle (e.g., `jsmith`, `acme-corp`). Found in Account panel as `@username:stack.cards` or in workspace URLs like `app.boxel.ai/username/workspace-name`
 - **Password**: Same as Boxel web login
 
 Then run (using environment variable for security):
@@ -56,9 +56,10 @@ npx boxel list
 ```
 
 ### 4. First Sync
-Help them sync a workspace:
+Help them sync a workspace to the standard location:
 ```bash
-npx boxel sync @username/workspace ./workspace-name
+# Structure: ~/boxel-workspaces/{realm-server}/{user}/{workspace}
+npx boxel sync @username/workspace ~/boxel-workspaces/boxel.ai/username/workspace
 ```
 
 ## Profile Management

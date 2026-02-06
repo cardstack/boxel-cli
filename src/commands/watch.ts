@@ -15,11 +15,8 @@ interface WatchOptions {
   verbose?: boolean;
 }
 
-interface SyncManifest {
-  workspaceUrl: string;
-  lastSync: string;
-  files: Record<string, { hash: string; mtime: number }>;
-}
+// Manifest format (compatible with sync.ts):
+// { workspaceUrl, lastSyncTime, files: { [path]: { localHash, remoteMtime } } }
 
 interface WatchedRealm {
   name: string;
@@ -110,9 +107,11 @@ export async function watchCommand(
     const lastKnownState: Record<string, number> = {};
     const manifestPath = path.join(localDir, '.boxel-sync.json');
     if (fs.existsSync(manifestPath)) {
-      const manifest: SyncManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
       for (const [file, info] of Object.entries(manifest.files)) {
-        lastKnownState[file] = info.mtime;
+        // Support both old format (mtime) and new format (remoteMtime)
+        const fileInfo = info as { mtime?: number; remoteMtime?: number };
+        lastKnownState[file] = fileInfo.remoteMtime ?? fileInfo.mtime ?? 0;
       }
     }
 
@@ -225,18 +224,18 @@ export async function watchCommand(
 
     realm.lastKnownState = { ...remoteMtimes };
 
-    const manifest: SyncManifest = {
+    const manifest = {
       workspaceUrl: realm.workspaceUrl,
-      lastSync: new Date().toISOString(),
-      files: {},
+      lastSyncTime: Date.now(),
+      files: {} as Record<string, { localHash: string; remoteMtime: number }>,
     };
 
     for (const [file, mtime] of Object.entries(remoteMtimes)) {
       const localPath = path.join(realm.localDir, file);
       if (fs.existsSync(localPath)) {
         const content = fs.readFileSync(localPath);
-        const hash = createHash('sha256').update(content).digest('hex');
-        manifest.files[file] = { hash, mtime };
+        const localHash = createHash('md5').update(content).digest('hex');
+        manifest.files[file] = { localHash, remoteMtime: mtime };
       }
     }
 

@@ -49,6 +49,37 @@ The skill contains comprehensive Boxel development guidance including CardDef/Fi
 
 **When a user opens this repo, check if they need onboarding first!**
 
+## Local Workspace Directory Convention
+
+Boxel workspaces are synced to a dedicated directory outside of git repos (to avoid conflicts with multi-user PRs):
+
+```
+~/boxel-workspaces/
+├── boxel.ai/                    # Production realm server
+│   ├── acme-corp/               # User/org
+│   │   ├── project-atlas/       # Workspace
+│   │   └── personal/
+│   └── jsmith/
+└── stack.cards/                 # Staging realm server
+    └── jsmith/
+        └── sandbox/
+```
+
+**Structure:** `~/boxel-workspaces/{realm-server}/{user}/{workspace}`
+
+**First sync example:**
+```bash
+boxel sync @acme-corp/project-atlas ~/boxel-workspaces/boxel.ai/acme-corp/project-atlas
+```
+
+**Why this structure:**
+- Keeps Boxel workspaces separate from git repos (different sync/PR workflows)
+- Groups by realm server to avoid name collisions across environments
+- Groups by user to support multiple accounts
+- Clear mapping from Boxel URL to local path
+
+---
+
 ## Onboarding Flow
 
 When you detect a new user (no profile configured), guide them through setup:
@@ -84,9 +115,10 @@ npx boxel list
 ```
 
 ### Step 4: First Sync
-Help them sync their first workspace:
+Help them sync their first workspace to the standard location:
 ```bash
-npx boxel sync @username/workspace ./workspace-name
+# Structure: ~/boxel-workspaces/{realm-server}/{user}/{workspace}
+npx boxel sync @username/workspace ~/boxel-workspaces/boxel.ai/username/workspace
 ```
 
 ### Switching Between Profiles
@@ -151,8 +183,9 @@ boxel track . --push -v           # Push with verbose logging
 
 **Use track when:** Editing locally in IDE/VS Code. Creates checkpoints as you save files.
 **Symbol:** ⇆ (horizontal arrows = local changes)
+**Direction:** Local only (unless `--push` is used)
 
-**--push mode:** Automatically batch uploads changes to the server after each checkpoint using the `/_atomic` endpoint. Efficient for real-time sync workflows.
+**--push mode:** Automatically batch uploads changes to the server after each checkpoint using the `/_atomic` endpoint. This is how you push local edits to the server in real-time.
 
 ### Watch ⇅ (Remote Server Watching)
 ```bash
@@ -166,6 +199,7 @@ boxel watch . -v                  # Verbose logging
 
 **Use watch when:** Others are editing in Boxel web UI. Pulls their changes and creates checkpoints.
 **Symbol:** ⇅ (vertical arrows = remote server changes)
+**Direction:** Server → Local only (pull, never pushes)
 
 ### Stop
 ```bash
@@ -288,6 +322,8 @@ boxel track . --push -d 2 -i 5    # Track + auto-push with 2s debounce, 5s inter
 ```
 
 **Use this when:** You want instant sync to server as you edit locally. Uses the efficient `/_atomic` batch upload endpoint.
+
+**Manual sync while tracking:** You can run `boxel sync . --prefer-local` anytime while track --push is running to force an immediate sync (useful after interactive edits or if you want to push without waiting for debounce).
 
 ### Undo Server Changes (Restore)
 ```bash
@@ -452,7 +488,7 @@ Commands accept:
 
 When a user shares a URL like:
 ```
-https://app.boxel.ai/tribecaprep/employee-handbook/Document/d8341312-f3a0-442b-a2e5-49c5cdd84695
+https://app.boxel.ai/acme-corp/project-atlas/Document/d8341312-f3a0-442b-a2e5-49c5cdd84695
 ```
 
 **This is a Card ID, not a fetchable URL!**
@@ -462,8 +498,8 @@ https://app.boxel.ai/tribecaprep/employee-handbook/Document/d8341312-f3a0-442b-a
 | URL Part | Meaning |
 |----------|---------|
 | `app.boxel.ai` | Production server |
-| `tribecaprep` | User/organization |
-| `employee-handbook` | Realm/workspace name |
+| `acme-corp` | User/organization |
+| `project-atlas` | Realm/workspace name |
 | `Document/d8341312-...` | Card type and instance path |
 
 ### NEVER Use WebFetch on Boxel URLs
@@ -474,35 +510,34 @@ https://app.boxel.ai/tribecaprep/employee-handbook/Document/d8341312-f3a0-442b-a
 
 ### Finding the Local Copy
 
-If the user references a Boxel URL, the file is likely already synced to the local workspace:
+If the user references a Boxel URL, map it to the local workspace path:
 
-1. **Parse the path**: `Document/d8341312-f3a0-442b-a2e5-49c5cdd84695` → local path is `Document/d8341312-f3a0-442b-a2e5-49c5cdd84695.json`
+1. **Map URL to local path** using the directory convention:
+   - URL: `https://app.boxel.ai/acme-corp/project-atlas/Document/abc123`
+   - Local: `~/boxel-workspaces/boxel.ai/acme-corp/project-atlas/Document/abc123.json`
 
-2. **Search the workspace**:
-```bash
-# Find by card ID
-find . -name "d8341312-f3a0-442b-a2e5-49c5cdd84695*"
-
-# Or search for the card type folder
-ls ./Document/
-```
+2. **Parse the components**:
+   - `app.boxel.ai` → realm server `boxel.ai`
+   - `acme-corp` → user
+   - `project-atlas` → workspace
+   - `Document/abc123` → card path (add `.json`)
 
 3. **Read the local file** using the Read tool
 
 ### Example Workflow
 
-User says: "Check the handbook at https://app.boxel.ai/tribecaprep/employee-handbook/Document/abc123"
+User says: "Check the docs at https://app.boxel.ai/acme-corp/project-atlas/Document/abc123"
 
 **Do this:**
 ```
-# Look for local file
-Read ./Document/abc123.json
+# Map URL to local path using convention
+Read ~/boxel-workspaces/boxel.ai/acme-corp/project-atlas/Document/abc123.json
 ```
 
 **NOT this:**
 ```
 # This will FAIL - private realm
-WebFetch https://app.boxel.ai/tribecaprep/employee-handbook/Document/abc123
+WebFetch https://app.boxel.ai/acme-corp/project-atlas/Document/abc123
 ```
 
 ---

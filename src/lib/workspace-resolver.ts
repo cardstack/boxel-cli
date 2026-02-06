@@ -111,9 +111,18 @@ interface WorkspaceInfo {
 }
 
 export async function listUserWorkspaces(matrixClient: MatrixClient): Promise<WorkspaceInfo[]> {
-  const realmServerUrl = process.env.REALM_SERVER_URL;
+  // Get realm server URL from profile manager or env vars
+  let realmServerUrl = process.env.REALM_SERVER_URL;
   if (!realmServerUrl) {
-    throw new Error('REALM_SERVER_URL environment variable required');
+    const { getProfileManager } = await import('./profile-manager.js');
+    const profileManager = getProfileManager();
+    const credentials = await profileManager.getActiveCredentials();
+    if (credentials) {
+      realmServerUrl = credentials.realmServerUrl;
+    }
+  }
+  if (!realmServerUrl) {
+    throw new Error('REALM_SERVER_URL environment variable required or configure a profile with "boxel profile add"');
   }
 
   // Ensure matrix client is logged in
