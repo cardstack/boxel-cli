@@ -1,6 +1,5 @@
 import { CheckpointManager } from '../lib/checkpoint-manager.js';
 import * as path from 'path';
-import * as fs from 'fs';
 
 // ANSI color codes
 const FG_GREEN = '\x1b[32m';
@@ -23,17 +22,11 @@ export async function milestoneCommand(
   // Resolve workspace path
   const workspaceDir = path.resolve(workspace);
 
-  // Check if it's a synced workspace
-  const manifestPath = path.join(workspaceDir, '.boxel-sync.json');
-  if (!fs.existsSync(manifestPath)) {
-    console.error('Error: No .boxel-sync.json found. Run sync first to establish tracking.');
-    process.exit(1);
-  }
-
   const manager = new CheckpointManager(workspaceDir);
 
+  // Check if checkpoint history exists (created by pull, push, sync, or watch)
   if (!manager.isInitialized()) {
-    console.error('Error: No checkpoint history found. Checkpoints are created during sync/watch.');
+    console.error('Error: No checkpoint history found. Run pull, sync, or watch first to create checkpoints.');
     process.exit(1);
   }
 

@@ -111,8 +111,24 @@ async function promptUser(question: string, options: string[]): Promise<string> 
   });
 }
 
+// Helper function to prompt yes/no
+async function promptYesNo(question: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(question + ' ', (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
+}
+
 class RealmSyncer extends RealmSyncBase {
   hasError = false;
+  failedPulls: { relativePath: string; error: string }[] = [];
 
   constructor(
     private syncOptions: SyncCommandOptions,
@@ -121,6 +137,11 @@ class RealmSyncer extends RealmSyncBase {
     password: string,
   ) {
     super(syncOptions, matrixUrl, username, password);
+  }
+
+  // Public method to delete a file from the remote server
+  async deleteRemoteFile(relativePath: string): Promise<void> {
+    return this.deleteFile(relativePath);
   }
 
   private getConflictStrategy(): ConflictStrategy {
@@ -265,6 +286,7 @@ class RealmSyncer extends RealmSyncBase {
     }
 
     // Execute pulls
+    const failedPulls: { relativePath: string; error: string }[] = [];
     if (pullActions.length > 0) {
       console.log(`\nPulling ${pullActions.length} files from remote...`);
       for (const action of pullActions) {
@@ -278,10 +300,18 @@ class RealmSyncer extends RealmSyncBase {
           };
         } catch (error) {
           this.hasError = true;
+          const errorMsg = error instanceof Error ? error.message : String(error);
           console.error(`Error pulling ${action.relativePath}:`, error);
+          // Track 500 errors for potential cleanup
+          if (errorMsg.includes('500') || errorMsg.includes('Internal Server Error')) {
+            failedPulls.push({ relativePath: action.relativePath, error: errorMsg });
+          }
         }
       }
     }
+
+    // Store failed pulls for post-sync cleanup prompt
+    this.failedPulls = failedPulls;
 
     // Handle local deletions (files deleted on server) - always sync these
     // Create checkpoint BEFORE deleting so we can recover
@@ -604,14 +634,10 @@ export async function syncCommand(
   explicitUrl: string,
   options: SyncCommandOptionsInput,
 ): Promise<void> {
-  const matrixUrl = process.env.MATRIX_URL;
-  const matrixUsername = process.env.MATRIX_USERNAME;
-  const matrixPassword = process.env.MATRIX_PASSWORD;
-
-  if (!matrixUrl || !matrixUsername || !matrixPassword) {
-    console.error('Missing Matrix credentials in environment variables');
-    process.exit(1);
-  }
+  // Determine workspace URL for profile detection (use explicit URL or resolve later)
+  const urlForProfile = explicitUrl || (workspaceRef.startsWith('http') ? workspaceRef : '');
+  const { matrixUrl, username: matrixUsername, password: matrixPassword } =
+    await validateMatrixEnvVars(urlForProfile);
 
   let localDir: string;
   let workspaceUrl: string;
@@ -674,6 +700,31 @@ export async function syncCommand(
 
     await syncer.initialize();
     await syncer.sync();
+
+    // Handle failed pulls - offer to delete broken files from server
+    if (syncer.failedPulls.length > 0) {
+      console.log(`\n⚠️  ${syncer.failedPulls.length} file(s) failed to download (server error):`);
+      for (const failed of syncer.failedPulls) {
+        console.log(`   - ${failed.relativePath}`);
+      }
+
+      const shouldDelete = await promptYesNo(
+        '\nThese files may be broken on the server. Delete them from remote? [y/N]'
+      );
+
+      if (shouldDelete) {
+        console.log('\nDeleting broken files from server...');
+        for (const failed of syncer.failedPulls) {
+          try {
+            await syncer.deleteRemoteFile(failed.relativePath);
+            console.log(`  Deleted: ${failed.relativePath}`);
+          } catch (error) {
+            console.error(`  Failed to delete ${failed.relativePath}:`, error);
+          }
+        }
+        console.log('Cleanup completed.');
+      }
+    }
 
     if (syncer.hasError) {
       console.log('Sync completed with errors. View logs for details.');

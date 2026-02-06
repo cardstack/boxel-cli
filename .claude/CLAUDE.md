@@ -97,6 +97,39 @@ npx boxel profile switch username   # Switch by partial match
 
 ---
 
+## Local Workspace Organization
+
+When syncing multiple workspaces locally, organize them by **domain/username/realm** to mirror the Matrix ID structure (`@username:domain`):
+
+```
+boxel-workspaces/
+├── boxel.ai/                      # Production domain
+│   └── acme-corp/                 # Username
+│       ├── personal/              # Realm
+│       ├── project-atlas/
+│       └── inventory-tracker/
+└── stack.cards/                   # Staging domain
+    └── acme-corp/
+        └── sandbox/
+```
+
+**Benefits:**
+- Clear separation between production and staging environments
+- Matches the `@username:domain` profile ID format
+- Easy to identify which profile/environment a workspace belongs to
+- Supports multiple users on the same machine
+
+**First-time sync to this structure:**
+```bash
+# Production workspace
+boxel pull https://app.boxel.ai/acme-corp/project-atlas/ ./boxel-workspaces/boxel.ai/acme-corp/project-atlas
+
+# Staging workspace
+boxel pull https://realms-staging.stack.cards/acme-corp/sandbox/ ./boxel-workspaces/stack.cards/acme-corp/sandbox
+```
+
+---
+
 ## Available Skills
 
 ### `/track` - Track Local Edits
@@ -136,7 +169,14 @@ boxel status . --pull             # Auto-pull remote changes
 boxel check ./file.json --sync    # Check single file
 ```
 
-### Sync
+### Pull, Push, Sync (Command Relationship)
+
+| Command | Direction | Purpose | Deletes Local | Deletes Remote |
+|---------|-----------|---------|---------------|----------------|
+| `pull` | Remote → Local | Fresh download | with `--delete` | never |
+| `push` | Local → Remote | Deploy changes | never | with `--delete` |
+| `sync` | Both ways | Stay in sync | with `--prefer-remote` | with `--prefer-local` |
+
 ```bash
 boxel sync .                      # Interactive sync
 boxel sync . --prefer-local       # Keep local + sync deletions
@@ -144,7 +184,25 @@ boxel sync . --prefer-remote      # Keep remote
 boxel sync . --prefer-newest      # Keep newest version
 boxel sync . --delete             # Sync deletions both ways
 boxel sync . --dry-run            # Preview only
+
+boxel push ./local <url>          # One-way push (local → remote)
+boxel push ./local <url> --delete # Push and remove orphaned remote files
+boxel pull <url> ./local          # One-way pull (remote → local)
 ```
+
+**Failed download cleanup:** When `sync` encounters files that return 500 errors (broken/corrupted on server), it will prompt you to delete them:
+```
+⚠️  3 file(s) failed to download (server error):
+   - Staff/broken-card.json
+   - Student/corrupted.json
+
+These files may be broken on the server. Delete them from remote? [y/N]
+```
+
+> **Safety tip:** Before any destructive operation, create a checkpoint with a descriptive message:
+> ```bash
+> boxel history . -m "Before cleanup: removing broken server files"
+> ```
 
 ### Track ⇆ (Local File Watching)
 ```bash
@@ -347,6 +405,21 @@ boxel realms --llm
 ---
 
 ## Critical Patterns
+
+### ⚠️ SAFETY FIRST: Checkpoint Before Destructive Operations
+**Always create a checkpoint with a descriptive message before:**
+- Deleting files from server (`--prefer-local`, `push --delete`)
+- Restoring to an earlier checkpoint
+- Bulk cleanup operations
+- Removing card definitions or instances
+
+```bash
+boxel history . -m "Before cleanup: removing sample data and unused definitions"
+# Now safe to proceed with destructive operation
+boxel sync . --prefer-local
+```
+
+This ensures you can always recover if something goes wrong. The checkpoint message helps identify what state to restore to.
 
 ### 0. ALWAYS Write Source Code, Never Compiled Output
 When editing `.gts` files, **always write clean idiomatic source code**:
@@ -563,3 +636,9 @@ Headers:
 ### Switching environments (prod/staging)
 - Add profiles for each environment
 - Switch with: `boxel profile switch <username>`
+
+### "500 Internal Server Error" on specific files
+- These files are broken/corrupted on the server
+- Sync will prompt you to delete them after completion
+- Or use `boxel push . <url> --delete` to remove all orphaned remote files
+- Check if card definitions have errors in Boxel web UI
