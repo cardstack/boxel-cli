@@ -21,6 +21,7 @@ import { shareCommand } from './commands/share.js';
 import { gatherCommand } from './commands/gather.js';
 import { realmsCommand } from './commands/realms.js';
 import { profileCommand } from './commands/profile.js';
+import { packCommand } from './commands/pack.js';
 import { loadConfig } from './lib/realm-config.js';
 
 const program = new Command();
@@ -338,6 +339,48 @@ program
     await profileCommand(subcommand, arg, options);
   });
 
+program
+  .command('pack')
+  .description('Create and manage .cardpack archives')
+  .argument('[subcommand]', 'create | extract | list | add | remove | rewrite | merge')
+  .argument('[arg1]', 'Source directory or archive path')
+  .argument('[arg2]', 'Additional argument (file path for add/remove)')
+  .option('-o, --output <path>', 'Output path for create')
+  .option('-t, --target <path>', 'Target directory for extract')
+  .option('-d, --description <text>', 'Description for the cardpack')
+  .option('-r, --root <file>', 'Root card file for dependency-based packing')
+  .option('--transform <spec...>', 'Transform rules (glob:rule[:name]) for create')
+  .option('--rewrite-urls <pair...>', 'URL rewrite pairs (from to) for extract/merge')
+  .option('--on-conflict <mode>', 'Conflict handling: overwrite | skip')
+  .option('--dry-run', 'Preview changes without writing files')
+  .option('--from <url>', 'Source URL for rewrite subcommand')
+  .option('--to <url>', 'Target URL for rewrite subcommand')
+  .option('--into <dir>', 'Target directory for merge subcommand')
+  .option('--strategy <type>', 'Merge strategy: full | instance-only | definitions-only')
+  .action(
+    async (
+      subcommand?: string,
+      arg1?: string,
+      arg2?: string,
+      options?: {
+        output?: string;
+        target?: string;
+        description?: string;
+        root?: string;
+        transform?: string[];
+        rewriteUrls?: string[];
+        onConflict?: string;
+        dryRun?: boolean;
+        from?: string;
+        to?: string;
+        into?: string;
+        strategy?: string;
+      },
+    ) => {
+      await packCommand(subcommand, arg1, arg2, options);
+    },
+  );
+
 // Add help text for environment variables
 program.addHelpText('after', `
 Authentication:
@@ -398,6 +441,19 @@ Examples:
   boxel profile add                Add a new profile (interactive)
   boxel profile switch <id>        Switch to a different profile
   boxel profile migrate            Import credentials from .env
+
+  boxel pack create ./workspace    Pack directory into .cardpack
+  boxel pack create . -o my.cardpack  Pack with custom output name
+  boxel pack create . -r blog-post.gts  Pack only blog-post and its deps
+  boxel pack create . --transform "Draft/*:exclude" --transform "Author/*:export:sanitize-pii"
+  boxel pack list my.cardpack      List contents of .cardpack
+  boxel pack extract my.cardpack   Extract to ./my/ directory
+  boxel pack extract my.cardpack -t ./restored  Extract to specific dir
+  boxel pack extract my.cardpack --rewrite-urls "https://old/" "https://new/" --on-conflict overwrite
+  boxel pack add my.cardpack file.json  Add file to archive
+  boxel pack remove my.cardpack BlogPost/old.json  Remove file
+  boxel pack rewrite my.cardpack --from "https://old/" --to "https://new/"
+  boxel pack merge my.cardpack --into ./workspace --strategy instance-only --on-conflict skip
 `);
 
 program.parse();

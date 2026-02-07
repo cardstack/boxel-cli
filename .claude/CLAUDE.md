@@ -307,6 +307,64 @@ boxel gather . -s /path/to/repo                          # Pull from GitHub repo
 **Pushing to GitHub:** Use GitHub Desktop to push branches (no CLI auth configured).
 After share creates the branch locally, open GitHub Desktop and push.
 
+### Pack (CardPack Archives)
+```bash
+# Create
+boxel pack create ./workspace                    # Pack entire directory
+boxel pack create . -r blog-post.gts             # Root card + dependencies only
+boxel pack create . --transform "Draft/*:exclude" --transform "Author/*:export:sanitize-pii"
+
+# Inspect & modify
+boxel pack list my.cardpack                      # List contents
+boxel pack add my.cardpack file.json             # Add file
+boxel pack remove my.cardpack path/file.json     # Remove file
+
+# Extract with options
+boxel pack extract my.cardpack -t ./restored     # Extract to directory
+boxel pack extract my.cardpack --rewrite-urls "https://old/" "https://new/" --on-conflict overwrite
+
+# Rewrite URLs in-place
+boxel pack rewrite my.cardpack --from "https://old-realm/" --to "https://new-realm/"
+
+# Merge into workspace
+boxel pack merge my.cardpack --into ./workspace --strategy instance-only --on-conflict skip
+```
+
+**Transform rules** for `create --transform`:
+- `"Draft/*:exclude"` — omit from archive (metadata only in manifest)
+- `"*.gts:reference:https://catalog.boxel.ai/"` — record as external reference
+- `"Author/*:export:sanitize-pii"` — apply transform, then include
+
+**Built-in transforms:** `sanitize-pii`, `default-config`, `strip-metadata`
+
+**Merge strategies:** `full` (all), `instance-only` (.json), `definitions-only` (.gts)
+
+**Conflict modes:** `overwrite`, `skip`
+
+**Example — export, sanitize, and import workflow:**
+```bash
+# Pack private workspace, excluding drafts and sanitizing PII
+boxel pack create ./private-workspace -r blog-post.gts \
+  --transform "Draft/*:exclude" --transform "Author/*:export:sanitize-pii"
+
+# Preview merge into public workspace
+boxel pack merge blog-post.cardpack --into ./public-workspace --strategy full \
+  --rewrite-urls "https://private.boxel.ai/team/" "https://public.boxel.ai/blog/" \
+  --on-conflict skip --dry-run
+
+# Apply merge
+boxel pack merge blog-post.cardpack --into ./public-workspace --strategy full \
+  --rewrite-urls "https://private.boxel.ai/team/" "https://public.boxel.ai/blog/" \
+  --on-conflict overwrite
+```
+
+**Example — staging to production migration:**
+```bash
+boxel pack create ./staging-workspace -o cards.cardpack
+boxel pack rewrite cards.cardpack --from "https://realms-staging.stack.cards/user/" --to "https://app.boxel.ai/user/"
+boxel pack merge cards.cardpack --into ./prod-workspace --strategy instance-only --on-conflict skip
+```
+
 ### `/boxel-development` - Default Vibe Coding Skill
 The **Boxel Development** skill is auto-enabled for vibe coding. It provides comprehensive guidance for:
 - Card definitions (.gts files)

@@ -58,6 +58,7 @@ boxel sync .
 - **Claude Code Integration** - AI-assisted development with Boxel skills
 - **Edit Locking** - Prevent overwrites while editing locally
 - **Profile Management** - Switch between production and staging environments
+- **CardPack Archives** - Package cards into portable `.cardpack` files with transforms, URL rewriting, and merge
 
 ## Architecture: Two Git Models
 
@@ -313,6 +314,109 @@ boxel skills --refresh            # Fetch skills from Boxel
 boxel skills --list               # List available
 boxel skills --enable "Name"      # Enable skill
 boxel skills --export .           # Export to .claude/commands/
+```
+
+### CardPack Archives
+
+Create portable `.cardpack` archives for sharing cards between workspaces, realms, and environments.
+
+```bash
+# Create archives
+boxel pack create ./workspace                    # Pack entire directory
+boxel pack create . -r blog-post.gts             # Pack root card + dependencies only
+boxel pack create . --transform "Draft/*:exclude" --transform "Author/*:export:sanitize-pii"
+
+# Inspect
+boxel pack list my.cardpack                      # List contents and metadata
+
+# Extract
+boxel pack extract my.cardpack                   # Extract to ./my/
+boxel pack extract my.cardpack -t ./restored     # Extract to specific dir
+boxel pack extract my.cardpack --rewrite-urls "https://old/" "https://new/" --on-conflict overwrite
+
+# Modify
+boxel pack add my.cardpack file.json             # Add file to archive
+boxel pack remove my.cardpack BlogPost/old.json  # Remove file from archive
+
+# Rewrite URLs in-place
+boxel pack rewrite my.cardpack --from "https://old-realm.boxel.ai/" --to "https://new-realm.boxel.ai/"
+
+# Merge into workspace
+boxel pack merge my.cardpack --into ./workspace --strategy instance-only --on-conflict skip
+boxel pack merge my.cardpack --into ./workspace --strategy full --rewrite-urls "https://old/" "https://new/"
+```
+
+**Transform rules** control how files are handled during `create`:
+
+| Rule | Effect | Syntax |
+|------|--------|--------|
+| `copy` | Include as-is (default) | — |
+| `exclude` | Record in manifest but omit from archive | `"Draft/*:exclude"` |
+| `reference` | Record as external reference with URL | `"*.gts:reference:https://catalog.boxel.ai/"` |
+| `export` | Apply transform then include | `"Author/*:export:sanitize-pii"` |
+
+**Built-in transforms** (used with `export` rule):
+
+| Transform | What it does |
+|-----------|-------------|
+| `sanitize-pii` | Replace emails with `<email>`, phone numbers with `<phone>` |
+| `default-config` | Replace apiKey, secret, token, password values with `REPLACE_ME` |
+| `strip-metadata` | Remove `meta.realmInfo`, `meta.realmURL`, `meta.lastModified`, `_`-prefixed attributes |
+
+**Merge strategies:**
+
+| Strategy | Files merged |
+|----------|-------------|
+| `full` | All files |
+| `instance-only` | Only `.json` files |
+| `definitions-only` | Only `.gts` files |
+
+**Example workflow — export from private workspace, sanitize, and import into public workspace:**
+
+```bash
+# 1. Pack a private workspace, excluding drafts and sanitizing author PII
+boxel pack create ./private-workspace -r blog-post.gts \
+  --transform "Draft/*:exclude" \
+  --transform "Author/*:export:sanitize-pii"
+
+# 2. Inspect what's in the archive
+boxel pack list blog-post.cardpack
+
+# 3. Preview what a merge into a public workspace would do
+boxel pack merge blog-post.cardpack \
+  --into ./public-workspace \
+  --strategy full \
+  --rewrite-urls "https://private.boxel.ai/team/" "https://public.boxel.ai/blog/" \
+  --on-conflict skip \
+  --dry-run
+
+# 4. Apply the merge for real
+boxel pack merge blog-post.cardpack \
+  --into ./public-workspace \
+  --strategy full \
+  --rewrite-urls "https://private.boxel.ai/team/" "https://public.boxel.ai/blog/" \
+  --on-conflict overwrite
+
+# 5. Sync merged files to server
+boxel sync ./public-workspace --prefer-local
+```
+
+**Example — migrate cards between realms (staging → production):**
+
+```bash
+# Pack from staging workspace
+boxel pack create ./staging-workspace -o staging-cards.cardpack
+
+# Rewrite all staging URLs to production
+boxel pack rewrite staging-cards.cardpack \
+  --from "https://realms-staging.stack.cards/user/" \
+  --to "https://app.boxel.ai/user/"
+
+# Merge just the data instances (skip definitions, they may differ)
+boxel pack merge staging-cards.cardpack \
+  --into ./prod-workspace \
+  --strategy instance-only \
+  --on-conflict skip
 ```
 
 ---
@@ -587,11 +691,22 @@ cat ./Type/card-id.json
 npm install                     # Install dependencies
 npm run dev -- <command>        # Run CLI in development mode
 npm run build                   # Compile TypeScript
-npm test                        # Run tests
+npm test                        # Run all tests (unit + integration)
+npm run test:watch              # Watch mode
 npm run lint                    # Check code style
 ```
 
 > **Note:** Use `npm run dev -- <command>` during development (no rebuild needed). After build, use `npx boxel` or `boxel` (after `npm link`).
+
+### Testing
+
+Tests are organized in three tiers:
+
+- **Unit tests** (`test/pack/`, `test/lib/`, `test/commands/`) — Pure logic, filesystem, no network
+- **Integration tests** (`test/integration/`) — Full command flows with mocked Matrix/Realm servers
+- **Test helpers** (`test/helpers/`) — Mock fetch infrastructure for integration tests
+
+The integration tests mock at the `fetch` level (not at the class level), testing the full code path from command entry point through `MatrixClient` → `RealmAuthClient` → `RealmSyncBase` → network. A stateful mock realm server maintains a mutable `files` Map, enabling tests that mutate server state mid-command to simulate concurrent user activity in the Boxel web UI.
 
 ### Claude Code Integration
 
