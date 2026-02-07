@@ -1,0 +1,19 @@
+{
+  "data": {
+    "type": "card",
+    "attributes": {
+      "firstName": "Jamie",
+      "lastName": "Chen",
+      "role": "Senior Engineer",
+      "email": "jamie.chen@example.com",
+      "avatarEmoji": "👨‍💻"
+    },
+    "meta": {
+      "adoptsFrom": {
+        "module": "../person",
+        "name": "Person"
+      },
+      "_touched": 1770499233967
+    }
+  }
+}

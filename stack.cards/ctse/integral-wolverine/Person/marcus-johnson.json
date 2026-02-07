@@ -1,0 +1,19 @@
+{
+  "data": {
+    "type": "card",
+    "attributes": {
+      "firstName": "Marcus",
+      "lastName": "Johnson",
+      "role": "QA Engineer",
+      "email": "marcus.johnson@example.com",
+      "avatarEmoji": "🧑‍🔬"
+    },
+    "meta": {
+      "adoptsFrom": {
+        "module": "../person",
+        "name": "Person"
+      },
+      "_touched": 1770499235247
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "data": {
+    "type": "card",
+    "attributes": {
+      "firstName": "Sarah",
+      "lastName": "Williams",
+      "role": "Frontend Developer",
+      "email": "sarah.williams@example.com",
+      "avatarEmoji": "👩‍🎨"
+    },
+    "meta": {
+      "adoptsFrom": {
+        "module": "../person",
+        "name": "Person"
+      },
+      "_touched": 1770499236363
+    }
+  }
+}

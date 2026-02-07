@@ -1,0 +1,18 @@
+{
+  "data": {
+    "type": "card",
+    "attributes": {
+      "name": "Deploy to Staging",
+      "status": "in-progress",
+      "priority": "high",
+      "completed": false
+    },
+    "meta": {
+      "adoptsFrom": {
+        "module": "../task",
+        "name": "Task"
+      },
+      "_touched": 1770499253311
+    }
+  }
+}

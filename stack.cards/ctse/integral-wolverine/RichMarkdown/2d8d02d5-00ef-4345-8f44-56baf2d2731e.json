@@ -1,0 +1,58 @@
+{
+  "data": {
+    "id": "https://realms-staging.stack.cards/ctse/integral-wolverine/RichMarkdown/2d8d02d5-00ef-4345-8f44-56baf2d2731e",
+    "meta": {
+      "realmURL": "https://realms-staging.stack.cards/ctse/integral-wolverine/",
+      "realmInfo": {
+        "name": "Integral Wolverine",
+        "iconURL": "https://boxel-images.boxel.ai/icons/Letter-i.png",
+        "hostHome": null,
+        "visibility": "private",
+        "publishable": true,
+        "realmUserId": "@realm/ctse_integral-wolverine:stack.cards",
+        "interactHome": null,
+        "backgroundURL": "https://boxel-images.boxel.ai/background-images/4k-techno-floor.jpg",
+        "showAsCatalog": null,
+        "lastPublishedAt": null
+      },
+      "adoptsFrom": {
+        "name": "RichMarkdown",
+        "module": "../rich-markdown"
+      },
+      "lastModified": 1770481771,
+      "resourceCreatedAt": 1770472696,
+      "_touched": 1770499242926
+    },
+    "type": "card",
+    "attributes": {
+      "content": {
+        "content": "# Perfect French Omelette\n\nA classic French omelette is silky, tender, and elegant. Master this technique and you'll have a quick, delicious meal anytime.\n\n```\njavascript code\n```\n\n## Ingredients\n\n- 4 large eggs\n- 1 tablespoon butter\n- 2 tablespoons milk or cream (optional)\n- Salt and pepper to taste\n- Fresh herbs (chives, parsley, or tarragon)\n- Optional fillings: cheese, ham, mushrooms, spinach\n\n## Equipment\n\n- 8-inch non-stick skillet\n- Fork or whisk\n- Rubber spatula\n- Small bowl\n\n## Instructions\n\n### 1. Prepare the Eggs\n\nCrack the eggs into a bowl and add milk if using. Season with salt and pepper. Whisk vigorously with a fork until well combined and slightly frothy.\n\n### 2. Heat the Pan\n\nPlace your skillet over medium-high heat. Add butter and swirl to coat the entire surface. The butter should foam but not brown.\n\n### 3. Cook the Omelette\n\nPour in the eggs. They should sizzle gently. Using a spatula, stir the eggs in a circular motion for about 10-15 seconds, then let them set for another 10 seconds.\n\n### 4. Add Fillings\n\nWhen the eggs are mostly set but still slightly wet on top, add your fillings to one half of the omelette.\n\n### 5. Fold and Serve\n\nUsing the spatula, fold the omelette in half. Let it cook for another 15-20 seconds, then slide onto a warm plate.\n\n## Tips for Success\n\n- **Temperature Control**: Medium-high heat is key. Too hot and the eggs will brown; too cool and they'll be rubbery.\n- **Fresh Eggs**: Use the freshest eggs possible for the best flavor and texture.\n- **Don't Overcook**: The omelette should be slightly runny inside when you fold it. It will continue cooking from residual heat.\n- **Speed**: The entire cooking process should take about 60-90 seconds.\n\n## Variations\n\n### Classic French\n\nSimple and pure - just eggs, butter, and fresh herbs.\n\n### Cheese Omelette\n\nAdd 2-3 tablespoons of grated Gruyère, cheddar, or your favorite cheese.\n\n### Western Omelette\n\nDiced ham, bell peppers, onions, and cheese.\n\n### Mushroom and Herb\n\nSautéed mushrooms with fresh thyme and parsley.\n\n---\n\n> **Chef's Note**: \"The key to a perfect omelette is confidence. Don't be afraid to practice - you'll get better with each one!\"\n\n## Nutritional Information\n\n| Nutrient | Per Serving |\n| --- | --- |\n| Calories | 220 |\n| Protein | 18g |\n| Fat | 16g |\n| Carbs | 2g |\n\n**Prep Time**: 5 minutes  \n\n**Cook Time**: 2 minutes  \n\n**Total Time**: 7 minutes  \n\n**Servings**: 1"
+      },
+      "cardInfo": {
+        "name": "Perfect French Omelette Recipe",
+        "notes": null,
+        "summary": "A complete guide to making a classic French omelette with tips, variations, and step-by-step instructions",
+        "cardThumbnailURL": "https://placehold.co/400x300/FFD700/FFFFFF?text=Omelette+Recipe"
+      },
+      "cardTitle": "Perfect French Omelette Recipe",
+      "rawMarkdown": "# Perfect French Omelette\n\nA classic French omelette is silky, tender, and elegant. Master this technique and you'll have a quick, delicious meal anytime.\n\n```\njavascript code\n```\n\n## Ingredients\n\n- 4 large eggs\n- 1 tablespoon butter\n- 2 tablespoons milk or cream (optional)\n- Salt and pepper to taste\n- Fresh herbs (chives, parsley, or tarragon)\n- Optional fillings: cheese, ham, mushrooms, spinach\n\n## Equipment\n\n- 8-inch non-stick skillet\n- Fork or whisk\n- Rubber spatula\n- Small bowl\n\n## Instructions\n\n### 1. Prepare the Eggs\n\nCrack the eggs into a bowl and add milk if using. Season with salt and pepper. Whisk vigorously with a fork until well combined and slightly frothy.\n\n### 2. Heat the Pan\n\nPlace your skillet over medium-high heat. Add butter and swirl to coat the entire surface. The butter should foam but not brown.\n\n### 3. Cook the Omelette\n\nPour in the eggs. They should sizzle gently. Using a spatula, stir the eggs in a circular motion for about 10-15 seconds, then let them set for another 10 seconds.\n\n### 4. Add Fillings\n\nWhen the eggs are mostly set but still slightly wet on top, add your fillings to one half of the omelette.\n\n### 5. Fold and Serve\n\nUsing the spatula, fold the omelette in half. Let it cook for another 15-20 seconds, then slide onto a warm plate.\n\n## Tips for Success\n\n- **Temperature Control**: Medium-high heat is key. Too hot and the eggs will brown; too cool and they'll be rubbery.\n- **Fresh Eggs**: Use the freshest eggs possible for the best flavor and texture.\n- **Don't Overcook**: The omelette should be slightly runny inside when you fold it. It will continue cooking from residual heat.\n- **Speed**: The entire cooking process should take about 60-90 seconds.\n\n## Variations\n\n### Classic French\n\nSimple and pure - just eggs, butter, and fresh herbs.\n\n### Cheese Omelette\n\nAdd 2-3 tablespoons of grated Gruyère, cheddar, or your favorite cheese.\n\n### Western Omelette\n\nDiced ham, bell peppers, onions, and cheese.\n\n### Mushroom and Herb\n\nSautéed mushrooms with fresh thyme and parsley.\n\n---\n\n> **Chef's Note**: \"The key to a perfect omelette is confidence. Don't be afraid to practice - you'll get better with each one!\"\n\n## Nutritional Information\n\n| Nutrient | Per Serving |\n| --- | --- |\n| Calories | 220 |\n| Protein | 18g |\n| Fat | 16g |\n| Carbs | 2g |\n\n**Prep Time**: 5 minutes  \n\n**Cook Time**: 2 minutes  \n\n**Total Time**: 7 minutes  \n\n**Servings**: 1",
+      "cardDescription": "A complete guide to making a classic French omelette with tips, variations, and step-by-step instructions",
+      "cardThumbnailURL": "https://placehold.co/400x300/FFD700/FFFFFF?text=Omelette+Recipe"
+    },
+    "relationships": {
+      "cardInfo.theme": {
+        "links": {
+          "self": null
+        }
+      },
+      "content.linkedCards": {
+        "links": {
+          "self": null
+        }
+      }
+    },
+    "links": {
+      "self": "https://realms-staging.stack.cards/ctse/integral-wolverine/RichMarkdown/2d8d02d5-00ef-4345-8f44-56baf2d2731e"
+    }
+  }
+}

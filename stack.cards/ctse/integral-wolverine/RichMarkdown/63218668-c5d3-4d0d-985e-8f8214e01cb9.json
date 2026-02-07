@@ -1,0 +1,58 @@
+{
+  "data": {
+    "id": "https://realms-staging.stack.cards/ctse/integral-wolverine/RichMarkdown/63218668-c5d3-4d0d-985e-8f8214e01cb9",
+    "meta": {
+      "realmURL": "https://realms-staging.stack.cards/ctse/integral-wolverine/",
+      "realmInfo": {
+        "name": "Integral Wolverine",
+        "iconURL": "https://boxel-images.boxel.ai/icons/Letter-i.png",
+        "hostHome": null,
+        "visibility": "private",
+        "publishable": true,
+        "realmUserId": "@realm/ctse_integral-wolverine:stack.cards",
+        "interactHome": null,
+        "backgroundURL": "https://boxel-images.boxel.ai/background-images/4k-techno-floor.jpg",
+        "showAsCatalog": null,
+        "lastPublishedAt": null
+      },
+      "adoptsFrom": {
+        "name": "RichMarkdown",
+        "module": "../rich-markdown"
+      },
+      "lastModified": 1770476470,
+      "resourceCreatedAt": 1770475408,
+      "_touched": 1770499244789
+    },
+    "type": "card",
+    "attributes": {
+      "content": {
+        "content": "# RichMarkdown Feature Showcase\n\nThis document demonstrates all the advanced features of the RichMarkdown editor, including **inline card references**, **block card embeds**, **inline field values**, and the new **ToastMark syntax**.\n\n---\n\n## Team Members (Inline Card References)\n\nOur development team consists of talented individuals:\n\n- Lead Developer: :card[Jamie Chen]{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/jamie-chen}\n- Frontend Specialist: :card[Sarah Williams]{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/sarah-williams}\n- QA Engineer: :card[Marcus Johnson]{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/marcus-johnson}\n\nClick any name above to view their full profile card!\n\n---\n\n## Current Sprint Tasks (Block Card Embeds)\n\nHere are the tasks we're tracking this sprint:\n\n::card{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Task/deploy-staging format=fitted width=320 height=200}\n\n::card{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Task/run-tests format=fitted width=320 height=200}\n\n---\n\n## Project Metrics (Inline Field Values)\n\nKey performance indicators for this quarter:\n\n| Metric | Value | Status |\n| --- | --- | --- |\n| Sprint Velocity | :field[28 pts]{type=number data='28'} | On Track |\n| Test Coverage | :field[94%]{type=percentage data='0.94'} | Excellent |\n| Bug Count | :field[3 open]{type=string data='3 open'} | Low |\n| Release Date | :field[Feb 15, 2026]{type=date data='2026-02-15'} | Scheduled |\n\n---\n\n## ToastMark Extended Syntax\n\nThe following examples demonstrate the new `$` prefix syntax for custom blocks:\n\n### Custom Block Syntax\n\n$$note\n\ntitle: Important\n\nThis is a custom note block that will render with special styling.\n\nPerfect for callouts and important information.\n\n$$\n\n$$warning\n\ntype: caution\n\nBe careful when deploying to production without running the full test suite first!\n\n$$\n\n### Custom Inline Syntax\n\nYou can also use inline custom syntax: $highlight[highlighted text] and $badge[v2.0]{color=green} for inline elements.\n\n---\n\n## Code Examples\n\n### TypeScript Card Definition\n\n```\nimport { CardDef, field, contains, StringField } from 'https://cardstack.com/base/card-api';\n\nexport class BlogPost extends CardDef {\n  @field title = contains(StringField);\n  @field content = contains(RichMarkdownField);\n  @field author = linksTo(() => Person);\n}\n```\n\n### Glimmer Template\n\n```\n<template>\n  <article class=\"blog-post\">\n    <h1>{{@model.title}}</h1>\n    <@fields.content />\n    <footer>\n      By: <@fields.author @format=\"atom\" />\n    </footer>\n  </article>\n</template>\n```\n\n---\n\n## Rich Formatting Examples\n\n### Blockquotes\n\n> \"The best way to predict the future is to invent it.\"\n\n— Alan Kay\n\n### Nested Lists\n\n1. **Phase 1: Foundation**\n\n   - Set up development environment\n\n   - Create base card definitions\n\n   - Implement authentication\n\n1. **Phase 2: Features**\n\n   - Rich text editing\n\n   - Card embedding\n\n   - Real-time sync\n\n1. **Phase 3: Polish**\n\n   - Performance optimization\n\n   - Accessibility improvements\n\n   - Documentation\n\n### Task Checklist\n\n- [ ] Design the schema\n- [ ] Implement ProseMirror integration\n- [x] Add dual-mode editing\n- [ ] Enable ToastMark parsing\n- [x] Add track changes support\n\n---\n\n## Linked Cards Section\n\nThe cards below are linked via the `linkedCards` relationship:\n\n::card{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/jamie-chen format=fitted width=300 height=200}\n\n::card{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/sarah-williams format=fitted width=300 height=200}\n\n---\n\n## Summary\n\nThis document showcases:\n\n| Feature | Syntax | Example |\n| --- | --- | --- |\n| Inline Card | `:card[Label]{id=...}` | Team member links |\n| Block Card | `::card{id=... format=fitted}` | Task embeds |\n| Inline Field | `:field[Value]{type=... data='...'}` | Metric values |\n| ToastMark Block | `$$type ... $$` | Notes, warnings |\n| ToastMark Inline | `$type[content]{attrs}` | Highlights, badges |\n\n**Authored by:** :card[Jamie Chen]{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/jamie-chen}  \n\n**Last Updated:** :field[February 7, 2026]{type=date data='2026-02-07'}"
+      },
+      "cardInfo": {
+        "name": "RichMarkdown Feature Showcase",
+        "notes": null,
+        "summary": "A comprehensive demonstration of all RichMarkdown features including card references, block embeds, inline fields, and ToastMark syntax",
+        "cardThumbnailURL": "https://placehold.co/400x300/6366f1/FFFFFF?text=Feature+Showcase"
+      },
+      "cardTitle": "RichMarkdown Feature Showcase",
+      "rawMarkdown": "# RichMarkdown Feature Showcase\n\nThis document demonstrates all the advanced features of the RichMarkdown editor, including **inline card references**, **block card embeds**, **inline field values**, and the new **ToastMark syntax**.\n\n---\n\n## Team Members (Inline Card References)\n\nOur development team consists of talented individuals:\n\n- Lead Developer: :card[Jamie Chen]{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/jamie-chen}\n- Frontend Specialist: :card[Sarah Williams]{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/sarah-williams}\n- QA Engineer: :card[Marcus Johnson]{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/marcus-johnson}\n\nClick any name above to view their full profile card!\n\n---\n\n## Current Sprint Tasks (Block Card Embeds)\n\nHere are the tasks we're tracking this sprint:\n\n::card{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Task/deploy-staging format=fitted width=320 height=200}\n\n::card{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Task/run-tests format=fitted width=320 height=200}\n\n---\n\n## Project Metrics (Inline Field Values)\n\nKey performance indicators for this quarter:\n\n| Metric | Value | Status |\n| --- | --- | --- |\n| Sprint Velocity | :field[28 pts]{type=number data='28'} | On Track |\n| Test Coverage | :field[94%]{type=percentage data='0.94'} | Excellent |\n| Bug Count | :field[3 open]{type=string data='3 open'} | Low |\n| Release Date | :field[Feb 15, 2026]{type=date data='2026-02-15'} | Scheduled |\n\n---\n\n## ToastMark Extended Syntax\n\nThe following examples demonstrate the new `$` prefix syntax for custom blocks:\n\n### Custom Block Syntax\n\n$$note\n\ntitle: Important\n\nThis is a custom note block that will render with special styling.\n\nPerfect for callouts and important information.\n\n$$\n\n$$warning\n\ntype: caution\n\nBe careful when deploying to production without running the full test suite first!\n\n$$\n\n### Custom Inline Syntax\n\nYou can also use inline custom syntax: $highlight[highlighted text] and $badge[v2.0]{color=green} for inline elements.\n\n---\n\n## Code Examples\n\n### TypeScript Card Definition\n\n```\nimport { CardDef, field, contains, StringField } from 'https://cardstack.com/base/card-api';\n\nexport class BlogPost extends CardDef {\n  @field title = contains(StringField);\n  @field content = contains(RichMarkdownField);\n  @field author = linksTo(() => Person);\n}\n```\n\n### Glimmer Template\n\n```\n<template>\n  <article class=\"blog-post\">\n    <h1>{{@model.title}}</h1>\n    <@fields.content />\n    <footer>\n      By: <@fields.author @format=\"atom\" />\n    </footer>\n  </article>\n</template>\n```\n\n---\n\n## Rich Formatting Examples\n\n### Blockquotes\n\n> \"The best way to predict the future is to invent it.\"\n\n— Alan Kay\n\n### Nested Lists\n\n1. **Phase 1: Foundation**\n\n   - Set up development environment\n\n   - Create base card definitions\n\n   - Implement authentication\n\n1. **Phase 2: Features**\n\n   - Rich text editing\n\n   - Card embedding\n\n   - Real-time sync\n\n1. **Phase 3: Polish**\n\n   - Performance optimization\n\n   - Accessibility improvements\n\n   - Documentation\n\n### Task Checklist\n\n- [ ] Design the schema\n- [ ] Implement ProseMirror integration\n- [x] Add dual-mode editing\n- [ ] Enable ToastMark parsing\n- [x] Add track changes support\n\n---\n\n## Linked Cards Section\n\nThe cards below are linked via the `linkedCards` relationship:\n\n::card{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/jamie-chen format=fitted width=300 height=200}\n\n::card{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/sarah-williams format=fitted width=300 height=200}\n\n---\n\n## Summary\n\nThis document showcases:\n\n| Feature | Syntax | Example |\n| --- | --- | --- |\n| Inline Card | `:card[Label]{id=...}` | Team member links |\n| Block Card | `::card{id=... format=fitted}` | Task embeds |\n| Inline Field | `:field[Value]{type=... data='...'}` | Metric values |\n| ToastMark Block | `$$type ... $$` | Notes, warnings |\n| ToastMark Inline | `$type[content]{attrs}` | Highlights, badges |\n\n**Authored by:** :card[Jamie Chen]{id=https://realms-staging.stack.cards/ctse/integral-wolverine/Person/jamie-chen}  \n\n**Last Updated:** :field[February 7, 2026]{type=date data='2026-02-07'}",
+      "cardDescription": "A comprehensive demonstration of all RichMarkdown features including card references, block embeds, inline fields, and ToastMark syntax",
+      "cardThumbnailURL": "https://placehold.co/400x300/6366f1/FFFFFF?text=Feature+Showcase"
+    },
+    "relationships": {
+      "cardInfo.theme": {
+        "links": {
+          "self": null
+        }
+      },
+      "content.linkedCards": {
+        "links": {
+          "self": null
+        }
+      }
+    },
+    "links": {
+      "self": "https://realms-staging.stack.cards/ctse/integral-wolverine/RichMarkdown/63218668-c5d3-4d0d-985e-8f8214e01cb9"
+    }
+  }
+}

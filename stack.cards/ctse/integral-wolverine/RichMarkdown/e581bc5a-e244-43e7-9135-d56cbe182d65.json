@@ -1,0 +1,159 @@
+{
+  "data": {
+    "id": "https://realms-staging.stack.cards/ctse/integral-wolverine/RichMarkdown/e581bc5a-e244-43e7-9135-d56cbe182d65",
+    "meta": {
+      "realmURL": "https://realms-staging.stack.cards/ctse/integral-wolverine/",
+      "realmInfo": {
+        "name": "Integral Wolverine",
+        "iconURL": "https://boxel-images.boxel.ai/icons/Letter-i.png",
+        "hostHome": null,
+        "visibility": "private",
+        "publishable": true,
+        "realmUserId": "@realm/ctse_integral-wolverine:stack.cards",
+        "interactHome": null,
+        "backgroundURL": "https://boxel-images.boxel.ai/background-images/4k-techno-floor.jpg",
+        "showAsCatalog": null,
+        "lastPublishedAt": null
+      },
+      "adoptsFrom": {
+        "name": "RichMarkdown",
+        "module": "../rich-markdown"
+      },
+      "lastModified": 1770499531,
+      "resourceCreatedAt": 1770439306
+    },
+    "type": "card",
+    "attributes": {
+      "content": {
+        "content": "# Kitchen Sink: Card Embedding Syntax\n\n## Inline `:card` (atom format)\n\nMention a person: :card[Jamie]{id=0}\n\nMention a task: :card[Deploy]{id=2}\n\nMultiple inline: :card[Jamie]{id=0} assigned :card[Deploy]{id=2} to :card[Sarah]{id=1}\n\n## Block `::card` (embedded format)\n\n### Person Cards\n\n::card{id=0 format=embedded width=320 height=200}\n\n::card{id=1 format=embedded width=320 height=200}\n\n### Task Cards\n\n::card{id=2 format=embedded width=320 height=200}\n\n::card{id=3 format=embedded width=320 height=200}\n\n## Block with explicit formats\n\n### Atom format (inline-block)\n\n::card{id=0 format=atom width=320 height=200}\n\n::card{id=2 format=atom width=320 height=200}\n\n### Fitted format\n\n::card{id=0 format=fitted width=320 height=200}\n\n::card{id=2 format=fitted width=320 height=200}\n\n## Container `:::card` (isolated format)\n\n  :::card{id=0 format=isolated}\n\n  :::\n\n  :::card{id=2 format=isolated}\n\n  :::\n\n## Mixed usage in context\n\n  > :card[Jamie]{id=0} said: \"Let's ship :card[Deploy]{id=2} today!\"\n\n  | Person | Task | Status |\n\n  |--------|------|--------|\n\n  | :card[Jamie]{id=0} | :card[Deploy]{id=2} | In Progress |\n\n  | :card[Sarah]{id=1} | :card[Tests]{id=3} | Todo |\n\n  Index reference:\n\n  - 0 = Jamie (Person)\n\n  - 1 = Sarah (Person)\n\n  - 2 = Deploy (Task)\n\n  - 3 = Tests (Task)"
+      },
+      "cardInfo": {
+        "name": "Project Documentation",
+        "notes": "Main documentation for staging deployment process",
+        "summary": "Deployment process documentation with task tracking and technical details",
+        "cardThumbnailURL": "https://placehold.co/400x300/6366F1/FFFFFF?text=Documentation"
+      },
+      "cardTitle": "Project Documentation",
+      "rawMarkdown": "# Kitchen Sink: Card Embedding Syntax\n\n## Inline `:card` (atom format)\n\nMention a person: :card[Jamie]{id=0}\n\nMention a task: :card[Deploy]{id=2}\n\nMultiple inline: :card[Jamie]{id=0} assigned :card[Deploy]{id=2} to :card[Sarah]{id=1}\n\n## Block `::card` (embedded format)\n\n### Person Cards\n\n::card{id=0 format=embedded width=320 height=200}\n\n::card{id=1 format=embedded width=320 height=200}\n\n### Task Cards\n\n::card{id=2 format=embedded width=320 height=200}\n\n::card{id=3 format=embedded width=320 height=200}\n\n## Block with explicit formats\n\n### Atom format (inline-block)\n\n::card{id=0 format=atom width=320 height=200}\n\n::card{id=2 format=atom width=320 height=200}\n\n### Fitted format\n\n::card{id=0 format=fitted width=320 height=200}\n\n::card{id=2 format=fitted width=320 height=200}\n\n## Container `:::card` (isolated format)\n\n  :::card{id=0 format=isolated}\n\n  :::\n\n  :::card{id=2 format=isolated}\n\n  :::\n\n## Mixed usage in context\n\n  > :card[Jamie]{id=0} said: \"Let's ship :card[Deploy]{id=2} today!\"\n\n  | Person | Task | Status |\n\n  |--------|------|--------|\n\n  | :card[Jamie]{id=0} | :card[Deploy]{id=2} | In Progress |\n\n  | :card[Sarah]{id=1} | :card[Tests]{id=3} | Todo |\n\n  Index reference:\n\n  - 0 = Jamie (Person)\n\n  - 1 = Sarah (Person)\n\n  - 2 = Deploy (Task)\n\n  - 3 = Tests (Task)",
+      "cardDescription": "Deployment process documentation with task tracking and technical details",
+      "cardThumbnailURL": "https://placehold.co/400x300/6366F1/FFFFFF?text=Documentation"
+    },
+    "relationships": {
+      "cardInfo.theme": {
+        "links": {
+          "self": "https://app.boxel.ai/catalog/Theme/cardstack"
+        },
+        "data": {
+          "type": "card",
+          "id": "https://app.boxel.ai/catalog/Theme/cardstack"
+        }
+      },
+      "content.linkedCards.0": {
+        "links": {
+          "self": "../Task/deploy-staging"
+        },
+        "data": {
+          "type": "card",
+          "id": "https://realms-staging.stack.cards/ctse/integral-wolverine/Task/deploy-staging"
+        }
+      }
+    },
+    "links": {
+      "self": "https://realms-staging.stack.cards/ctse/integral-wolverine/RichMarkdown/e581bc5a-e244-43e7-9135-d56cbe182d65"
+    }
+  },
+  "included": [
+    {
+      "id": "https://app.boxel.ai/catalog/Theme/cardstack",
+      "meta": {
+        "realmURL": "https://app.boxel.ai/catalog/",
+        "realmInfo": {
+          "name": "Cardstack Catalog",
+          "iconURL": "https://boxel-images.boxel.ai/icons/Letter-c.png",
+          "hostHome": null,
+          "visibility": "public",
+          "publishable": null,
+          "realmUserId": "@catalog_realm:boxel.ai",
+          "interactHome": null,
+          "backgroundURL": "https://boxel-images.boxel.ai/background-images/background-for-catalog-82x.jpg",
+          "showAsCatalog": null,
+          "lastPublishedAt": null
+        },
+        "adoptsFrom": {
+          "name": "Theme",
+          "module": "https://cardstack.com/base/card-api"
+        },
+        "lastModified": 1768865130,
+        "resourceCreatedAt": 1763564582
+      },
+      "type": "card",
+      "attributes": {
+        "cardInfo": {
+          "name": "Cardstack",
+          "notes": null,
+          "summary": null,
+          "cardThumbnailURL": null
+        },
+        "cardTitle": "Cardstack",
+        "cssImports": [],
+        "cssVariables": ":root {\n  --background: oklch(1 0 0);\n  --foreground: oklch(0 0 0);\n  --card: oklch(1 0 0);\n  --card-foreground: oklch(0 0 0);\n  --popover: oklch(1 0 0);\n  --popover-foreground: oklch(0 0 0);\n  --primary: oklch(0.833 0.174691 165.1921);\n  --primary-foreground: oklch(0 0 0);\n  --secondary: oklch(1 0 0);\n  --secondary-foreground: oklch(0 0 0);\n  --muted: oklch(0.9777 0.0041 301.4256);\n  --muted-foreground: oklch(0.4495 0 0);\n  --accent: oklch(0.931 0 0);\n  --accent-foreground: oklch(0 0 0);\n  --destructive: oklch(0.6763 0.2115 24.8106);\n  --destructive-foreground: oklch(0.9672 0 0);\n  --border: oklch(0.8669 0 0);\n  --input: oklch(1 0 0);\n  --ring: oklch(0.8859 0.1865 164.8865);\n  --chart-1: oklch(0.5838 0.299 307.6101);\n  --chart-2: oklch(0.5354 0.2684 283.1486);\n  --chart-3: oklch(0.9194 0.2182 125.1586);\n  --chart-4: oklch(0.5641 0.2301 259.998);\n  --chart-5: oklch(0.8277 0.2119 149.9571);\n  --sidebar: oklch(1 0 0);\n  --sidebar-foreground: oklch(0 0 0);\n  --sidebar-primary: oklch(0 0 0);\n  --sidebar-primary-foreground: oklch(1 0 0);\n  --sidebar-accent: oklch(0.931 0 0);\n  --sidebar-accent-foreground: oklch(0 0 0);\n  --sidebar-border: oklch(0.8669 0 0);\n  --sidebar-ring: oklch(0.8859 0.1865 164.8865);\n  --font-sans: 'IBM Plex Sans', 'Helvetica Neue', Arial, ui-sans-serif, sans-serif, system-ui;\n  --font-serif: 'IBM Plex Serif', 'Georgia', Times, serif;\n  --font-mono: 'IBM Plex Mono', 'Menlo', 'Courier New', Courier, ui-monospace, monospace;\n  --radius: 0.625rem;\n  --shadow-x: 0;\n  --shadow-y: 1px;\n  --shadow-blur: 3px;\n  --shadow-spread: 0px;\n  --shadow-opacity: 0.1;\n  --shadow-color: oklch(0 0 0);\n  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);\n  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);\n  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1),\n    0 1px 2px -1px hsl(0 0% 0% / 0.1);\n  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);\n  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1),\n    0 2px 4px -1px hsl(0 0% 0% / 0.1);\n  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1),\n    0 4px 6px -1px hsl(0 0% 0% / 0.1);\n  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1),\n    0 8px 10px -1px hsl(0 0% 0% / 0.1);\n  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);\n  --tracking-normal: 0.01em;\n  --spacing: 0.25rem;\n}\n\n.dark {\n  --background: oklch(0.2663 0.0245 298.8206);\n  --foreground: oklch(1 0 0);\n  --card: oklch(0.3541 0.031 289.8048);\n  --card-foreground: oklch(1 0 0);\n  --popover: oklch(0.4211 0.0203 300.7169);\n  --popover-foreground: oklch(1 0 0);\n  --primary: oklch(0.8859 0.1865 164.8865);\n  --primary-foreground: oklch(0 0 0);\n  --secondary: oklch(0 0 0);\n  --secondary-foreground: oklch(1 0 0);\n  --muted: oklch(0.4211 0.0203 300.7169);\n  --muted-foreground: oklch(0.7565 0.0113 286.1261);\n  --accent: oklch(0.5769 0.0259 290.9642);\n  --accent-foreground: oklch(1 0 0);\n  --destructive: oklch(0.6763 0.2115 24.8106);\n  --destructive-foreground: oklch(0.9672 0 0);\n  --border: oklch(0.4386 0 0);\n  --input: oklch(0 0 0);\n  --ring: oklch(0.8859 0.1865 164.8865);\n  --chart-1: oklch(0.5838 0.299 307.6101);\n  --chart-2: oklch(0.5354 0.2684 283.1486);\n  --chart-3: oklch(0.9194 0.2182 125.1586);\n  --chart-4: oklch(0.5641 0.2301 259.998);\n  --chart-5: oklch(0.8277 0.2119 149.9571);\n  --sidebar: oklch(0.3541 0.031 289.8048);\n  --sidebar-foreground: oklch(1 0 0);\n  --sidebar-primary: oklch(0.8859 0.1865 164.8865);\n  --sidebar-primary-foreground: oklch(0 0 0);\n  --sidebar-accent: oklch(0.5769 0.0259 290.9642);\n  --sidebar-accent-foreground: oklch(1 0 0);\n  --sidebar-border: oklch(0.4386 0 0);\n  --sidebar-ring: oklch(0.8859 0.1865 164.8865);\n  --font-sans: 'IBM Plex Sans', 'Helvetica Neue', Arial, ui-sans-serif, sans-serif, system-ui;\n  --font-serif: 'IBM Plex Serif', 'Georgia', Times, serif;\n  --font-mono: 'IBM Plex Mono', 'Menlo', 'Courier New', Courier, ui-monospace, monospace;\n  --radius: 0.625rem;\n  --shadow-x: 0;\n  --shadow-y: 1px;\n  --shadow-blur: 3px;\n  --shadow-spread: 0px;\n  --shadow-opacity: 0.1;\n  --shadow-color: oklch(0 0 0);\n  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);\n  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);\n  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1),\n    0 1px 2px -1px hsl(0 0% 0% / 0.1);\n  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);\n  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1),\n    0 2px 4px -1px hsl(0 0% 0% / 0.1);\n  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1),\n    0 4px 6px -1px hsl(0 0% 0% / 0.1);\n  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1),\n    0 8px 10px -1px hsl(0 0% 0% / 0.1);\n  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);\n}",
+        "cardDescription": null,
+        "cardThumbnailURL": null
+      },
+      "links": {
+        "self": "https://app.boxel.ai/catalog/Theme/cardstack"
+      }
+    },
+    {
+      "id": "https://realms-staging.stack.cards/ctse/integral-wolverine/Task/deploy-staging",
+      "meta": {
+        "realmURL": "https://realms-staging.stack.cards/ctse/integral-wolverine/",
+        "realmInfo": {
+          "name": "Integral Wolverine",
+          "iconURL": "https://boxel-images.boxel.ai/icons/Letter-i.png",
+          "hostHome": null,
+          "visibility": "private",
+          "publishable": true,
+          "realmUserId": "@realm/ctse_integral-wolverine:stack.cards",
+          "interactHome": null,
+          "backgroundURL": "https://boxel-images.boxel.ai/background-images/4k-techno-floor.jpg",
+          "showAsCatalog": null,
+          "lastPublishedAt": null
+        },
+        "adoptsFrom": {
+          "name": "Task",
+          "module": "../task"
+        },
+        "lastModified": 1770499253,
+        "resourceCreatedAt": 1770454254
+      },
+      "type": "card",
+      "attributes": {
+        "name": "Deploy to Staging",
+        "title": "Deploy to Staging",
+        "status": "in-progress",
+        "cardInfo": {
+          "name": null,
+          "notes": null,
+          "summary": null,
+          "cardThumbnailURL": null
+        },
+        "priority": "high",
+        "cardTitle": "Untitled Task",
+        "completed": false,
+        "cardDescription": null,
+        "cardThumbnailURL": null
+      },
+      "relationships": {
+        "cardInfo.theme": {
+          "links": {
+            "self": null
+          }
+        }
+      },
+      "links": {
+        "self": "../Task/deploy-staging"
+      }
+    }
+  ]
+}
