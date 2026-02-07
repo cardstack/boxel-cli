@@ -1,0 +1,34 @@
+{
+  "data": {
+    "type": "card",
+    "attributes": {
+      "merchantName": "Whole Foods Market",
+      "merchantAddress": "399 4th Street, San Francisco, CA 94107",
+      "date": "Jan 18, 2024",
+      "time": "6:23 PM",
+      "items": [
+        { "name": "Organic Bananas", "quantity": 1, "price": 2.49 },
+        { "name": "Almond Milk (64oz)", "quantity": 2, "price": 9.98 },
+        { "name": "Free Range Eggs", "quantity": 1, "price": 7.99 },
+        { "name": "Sourdough Bread", "quantity": 1, "price": 5.99 },
+        { "name": "Organic Spinach", "quantity": 1, "price": 4.99 },
+        { "name": "Wild Salmon Fillet", "quantity": 1, "price": 18.99 },
+        { "name": "Avocados (3 pack)", "quantity": 1, "price": 5.99 },
+        { "name": "Greek Yogurt", "quantity": 2, "price": 11.98 },
+        { "name": "Olive Oil (750ml)", "quantity": 1, "price": 14.99 },
+        { "name": "Mixed Nuts", "quantity": 1, "price": 12.99 }
+      ],
+      "subtotal": 96.38,
+      "tax": 3.86,
+      "total": 100.24,
+      "paymentMethod": "Apple Pay",
+      "lastFour": "1234"
+    },
+    "meta": {
+      "adoptsFrom": {
+        "module": "../receipt",
+        "name": "Receipt"
+      }
+    }
+  }
+}

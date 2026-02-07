@@ -19,13 +19,13 @@
         "name": "RichMarkdown",
         "module": "../rich-markdown"
       },
-      "lastModified": 1770501250,
+      "lastModified": 1770501862,
       "resourceCreatedAt": 1770454978
     },
     "type": "card",
     "attributes": {
       "content": {
-        "content": "# Card Embedding Test\n\n## Inline Test\n\nSimple inline test: :card[Jamie]{id=0} is working on :card[Deploy]{id=2}.\n\n## Block Test - Fitted Format\n\nFitted card (300x300):\n\n::card{id=0 format=fitted width=300 height=300}\n\n## Block Test - Embedded Format Sizes\n\nEmbedded small (max 320px):\n\n::card{id=1 format=embedded size=small}\n\nEmbedded medium (max 480px):\n\n::card{id=0 format=embedded size=medium}\n\nEmbedded large (max 640px):\n\n::card{id=1 format=embedded size=large}\n\nEmbedded full (100% width):\n\n::card{id=0 format=embedded size=full}"
+        "content": "# Card Embedding Test\n\n## Inline Test\n\nSimple inline test: :card[Jamie]{id=0} is working on :card[Deploy]{id=2}.\n\n## Block Test\n\nfirstone: \n\n::card{id=0 format=fitted width=300 height=300}\n\nsecond one: full:\n\n::card{id=1 format=embedded size=full}\n\nsecond one: small:\n\n::card{id=1 format=embedded size=small}"
       },
       "cardInfo": {
         "name": "Project Documentation",
@@ -34,7 +34,7 @@
         "cardThumbnailURL": "https://placehold.co/400x300/6366F1/FFFFFF?text=Documentation"
       },
       "cardTitle": "Project Documentation",
-      "rawMarkdown": "# Card Embedding Test\n\n## Inline Test\n\nSimple inline test: :card[Jamie]{id=0} is working on :card[Deploy]{id=2}.\n\n## Block Test - Fitted Format\n\nFitted card (300x300):\n\n::card{id=0 format=fitted width=300 height=300}\n\n## Block Test - Embedded Format Sizes\n\nEmbedded small (max 320px):\n\n::card{id=1 format=embedded size=small}\n\nEmbedded medium (max 480px):\n\n::card{id=0 format=embedded size=medium}\n\nEmbedded large (max 640px):\n\n::card{id=1 format=embedded size=large}\n\nEmbedded full (100% width):\n\n::card{id=0 format=embedded size=full}",
+      "rawMarkdown": "# Card Embedding Test\n\n## Inline Test\n\nSimple inline test: :card[Jamie]{id=0} is working on :card[Deploy]{id=2}.\n\n## Block Test\n\nfirstone: \n\n::card{id=0 format=fitted width=300 height=300}\n\nsecond one: full:\n\n::card{id=1 format=embedded size=full}\n\nsecond one: small:\n\n::card{id=1 format=embedded size=small}",
       "cardDescription": "Deployment process documentation with task tracking and technical details",
       "cardThumbnailURL": "https://placehold.co/400x300/6366F1/FFFFFF?text=Documentation"
     },

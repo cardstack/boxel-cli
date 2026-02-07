@@ -1,0 +1,60 @@
+{
+  "data": {
+    "type": "card",
+    "attributes": {
+      "cardTitle": "Embedded Card Size & Height Test",
+      "cardDescription": "A comprehensive test of different card types at various sizes to evaluate height thresholds",
+      "content": {
+        "content": "# Embedded Card Size & Height Test\n\nThis document demonstrates how different card types behave at various size presets. Use this to evaluate the proposed height thresholds:\n\n| Size | Width | Max Height | Scroll Threshold |\n|------|-------|------------|------------------|\n| small | 320px | 200px | Auto-scroll |\n| medium | 480px | 320px | Auto-scroll |\n| large | 640px | 450px | Auto-scroll |\n| full | 100% | none | Natural flow |\n\n---\n\n## 1. Quote Cards (Short Content)\n\nQuotes are typically short and should fit naturally at any size.\n\n### Small Quote\n\n::card{id=0 format=embedded size=small}\n\n### Medium Quote\n\n::card{id=0 format=embedded size=medium}\n\n### Long Quote (should test scroll threshold)\n\n::card{id=1 format=embedded size=small}\n\nAt medium width:\n\n::card{id=1 format=embedded size=medium}\n\n---\n\n## 2. Code Snippets (Variable Height)\n\nCode can range from a few lines to hundreds.\n\n### Short Code at Small Size\n\n::card{id=2 format=embedded size=small}\n\n### Longer Code at Medium Size\n\n::card{id=3 format=embedded size=medium}\n\n### Same Code at Full Width\n\n::card{id=3 format=embedded size=full}\n\n---\n\n## 3. Email (Long Content)\n\nEmails are often long and benefit from scroll or expand.\n\n### Short Email at Medium Size\n\n::card{id=4 format=embedded size=medium}\n\n### Long Email at Medium Size (should scroll)\n\n::card{id=5 format=embedded size=medium}\n\n### Long Email at Full Width\n\n::card{id=5 format=embedded size=full}\n\n---\n\n## 4. Receipt (Narrow & Long)\n\nReceipts are naturally narrow. Small size works well.\n\n### Short Receipt at Small Size\n\n::card{id=6 format=embedded size=small}\n\n### Long Receipt at Small Size (should scroll)\n\n::card{id=7 format=embedded size=small}\n\n### Long Receipt at Medium Size\n\n::card{id=7 format=embedded size=medium}\n\n---\n\n## 5. Product Cards (Medium Height)\n\nProduct cards are typically medium-sized with images.\n\n### Product at Small Size\n\n::card{id=8 format=embedded size=small}\n\n### Product at Medium Size (sweet spot)\n\n::card{id=8 format=embedded size=medium}\n\n### Product at Large Size\n\n::card{id=9 format=embedded size=large}\n\n---\n\n## 6. Video (Aspect Ratio)\n\nVideos should maintain 16:9 aspect ratio.\n\n### Video at Small Size\n\n::card{id=10 format=embedded size=small}\n\n### Video at Medium Size\n\n::card{id=10 format=embedded size=medium}\n\n### Video at Full Width\n\n::card{id=11 format=embedded size=full}\n\n---\n\n## 7. Person Cards (Compact)\n\nPerson cards from the original test.\n\n### Person at Small Size\n\n::card{id=12 format=embedded size=small}\n\n### Person at Medium Size\n\n::card{id=12 format=embedded size=medium}\n\n---\n\n## 8. Fitted Format Comparison\n\nFitted format uses explicit pixel dimensions with container queries.\n\n### Small Fitted (200x200)\n\n::card{id=12 format=fitted width=200 height=200}\n\n### Medium Fitted (300x300)\n\n::card{id=12 format=fitted width=300 height=300}\n\n### Wide Fitted (400x150)\n\n::card{id=12 format=fitted width=400 height=150}\n\n---\n\n## Summary\n\nThis test helps visualize:\n1. Which content types naturally fit within size thresholds\n2. When scrolling should kick in\n3. How different card designs adapt to width constraints\n4. The difference between embedded (responsive) and fitted (fixed) formats"
+      },
+      "rawMarkdown": "# Embedded Card Size & Height Test\n\nThis document demonstrates how different card types behave at various size presets. Use this to evaluate the proposed height thresholds:\n\n| Size | Width | Max Height | Scroll Threshold |\n|------|-------|------------|------------------|\n| small | 320px | 200px | Auto-scroll |\n| medium | 480px | 320px | Auto-scroll |\n| large | 640px | 450px | Auto-scroll |\n| full | 100% | none | Natural flow |\n\n---\n\n## 1. Quote Cards (Short Content)\n\nQuotes are typically short and should fit naturally at any size.\n\n### Small Quote\n\n::card{id=0 format=embedded size=small}\n\n### Medium Quote\n\n::card{id=0 format=embedded size=medium}\n\n### Long Quote (should test scroll threshold)\n\n::card{id=1 format=embedded size=small}\n\nAt medium width:\n\n::card{id=1 format=embedded size=medium}\n\n---\n\n## 2. Code Snippets (Variable Height)\n\nCode can range from a few lines to hundreds.\n\n### Short Code at Small Size\n\n::card{id=2 format=embedded size=small}\n\n### Longer Code at Medium Size\n\n::card{id=3 format=embedded size=medium}\n\n### Same Code at Full Width\n\n::card{id=3 format=embedded size=full}\n\n---\n\n## 3. Email (Long Content)\n\nEmails are often long and benefit from scroll or expand.\n\n### Short Email at Medium Size\n\n::card{id=4 format=embedded size=medium}\n\n### Long Email at Medium Size (should scroll)\n\n::card{id=5 format=embedded size=medium}\n\n### Long Email at Full Width\n\n::card{id=5 format=embedded size=full}\n\n---\n\n## 4. Receipt (Narrow & Long)\n\nReceipts are naturally narrow. Small size works well.\n\n### Short Receipt at Small Size\n\n::card{id=6 format=embedded size=small}\n\n### Long Receipt at Small Size (should scroll)\n\n::card{id=7 format=embedded size=small}\n\n### Long Receipt at Medium Size\n\n::card{id=7 format=embedded size=medium}\n\n---\n\n## 5. Product Cards (Medium Height)\n\nProduct cards are typically medium-sized with images.\n\n### Product at Small Size\n\n::card{id=8 format=embedded size=small}\n\n### Product at Medium Size (sweet spot)\n\n::card{id=8 format=embedded size=medium}\n\n### Product at Large Size\n\n::card{id=9 format=embedded size=large}\n\n---\n\n## 6. Video (Aspect Ratio)\n\nVideos should maintain 16:9 aspect ratio.\n\n### Video at Small Size\n\n::card{id=10 format=embedded size=small}\n\n### Video at Medium Size\n\n::card{id=10 format=embedded size=medium}\n\n### Video at Full Width\n\n::card{id=11 format=embedded size=full}\n\n---\n\n## 7. Person Cards (Compact)\n\nPerson cards from the original test.\n\n### Person at Small Size\n\n::card{id=12 format=embedded size=small}\n\n### Person at Medium Size\n\n::card{id=12 format=embedded size=medium}\n\n---\n\n## 8. Fitted Format Comparison\n\nFitted format uses explicit pixel dimensions with container queries.\n\n### Small Fitted (200x200)\n\n::card{id=12 format=fitted width=200 height=200}\n\n### Medium Fitted (300x300)\n\n::card{id=12 format=fitted width=300 height=300}\n\n### Wide Fitted (400x150)\n\n::card{id=12 format=fitted width=400 height=150}\n\n---\n\n## Summary\n\nThis test helps visualize:\n1. Which content types naturally fit within size thresholds\n2. When scrolling should kick in\n3. How different card designs adapt to width constraints\n4. The difference between embedded (responsive) and fitted (fixed) formats"
+    },
+    "relationships": {
+      "content.linkedCards.0": {
+        "links": { "self": "../Quote/einstein" }
+      },
+      "content.linkedCards.1": {
+        "links": { "self": "../Quote/long-quote" }
+      },
+      "content.linkedCards.2": {
+        "links": { "self": "../CodeSnippet/short-snippet" }
+      },
+      "content.linkedCards.3": {
+        "links": { "self": "../CodeSnippet/react-hook" }
+      },
+      "content.linkedCards.4": {
+        "links": { "self": "../Email/short-email" }
+      },
+      "content.linkedCards.5": {
+        "links": { "self": "../Email/project-update" }
+      },
+      "content.linkedCards.6": {
+        "links": { "self": "../Receipt/coffee-shop" }
+      },
+      "content.linkedCards.7": {
+        "links": { "self": "../Receipt/grocery" }
+      },
+      "content.linkedCards.8": {
+        "links": { "self": "../Product/headphones" }
+      },
+      "content.linkedCards.9": {
+        "links": { "self": "../Product/book" }
+      },
+      "content.linkedCards.10": {
+        "links": { "self": "../Video/tech-talk" }
+      },
+      "content.linkedCards.11": {
+        "links": { "self": "../Video/tutorial" }
+      },
+      "content.linkedCards.12": {
+        "links": { "self": "../Person/jamie-chen" }
+      }
+    },
+    "meta": {
+      "adoptsFrom": {
+        "module": "../rich-markdown",
+        "name": "RichMarkdown"
+      }
+    }
+  }
+}

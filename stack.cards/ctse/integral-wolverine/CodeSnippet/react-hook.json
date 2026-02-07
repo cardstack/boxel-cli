@@ -1,0 +1,17 @@
+{
+  "data": {
+    "type": "card",
+    "attributes": {
+      "filename": "useLocalStorage.ts",
+      "language": "typescript",
+      "description": "A custom React hook for persisting state to localStorage",
+      "code": "import { useState, useEffect } from 'react';\n\nexport function useLocalStorage<T>(\n  key: string,\n  initialValue: T\n): [T, (value: T) => void] {\n  const [storedValue, setStoredValue] = useState<T>(() => {\n    try {\n      const item = window.localStorage.getItem(key);\n      return item ? JSON.parse(item) : initialValue;\n    } catch (error) {\n      console.error(error);\n      return initialValue;\n    }\n  });\n\n  const setValue = (value: T) => {\n    try {\n      setStoredValue(value);\n      window.localStorage.setItem(key, JSON.stringify(value));\n    } catch (error) {\n      console.error(error);\n    }\n  };\n\n  return [storedValue, setValue];\n}"
+    },
+    "meta": {
+      "adoptsFrom": {
+        "module": "../code-snippet",
+        "name": "CodeSnippet"
+      }
+    }
+  }
+}
