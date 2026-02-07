@@ -186,6 +186,14 @@ MATRIX_PASSWORD=your-password
 
 ### Sync Operations
 
+**Pull, Push, and Sync relationship:**
+
+| Command | Direction | Purpose | Deletes Local | Deletes Remote |
+|---------|-----------|---------|---------------|----------------|
+| `pull` | Remote → Local | Fresh download | with `--delete` | never |
+| `push` | Local → Remote | Deploy changes | never | with `--delete` |
+| `sync` | Both ways | Stay in sync | with `--prefer-remote` | with `--prefer-local` |
+
 ```bash
 boxel sync .                      # Bidirectional sync (interactive)
 boxel sync . --prefer-local       # Keep local on conflicts, sync deletions to server
@@ -195,8 +203,23 @@ boxel sync . --delete             # Sync deletions both ways
 boxel sync . --dry-run            # Preview only
 
 boxel push ./local <url>          # One-way push (local → remote)
+boxel push ./local <url> --delete # Push and remove orphaned remote files
 boxel pull <url> ./local          # One-way pull (remote → local)
 ```
+
+**Failed download cleanup:** When `sync` encounters files that return 500 errors (broken on server), it will prompt you to delete them:
+```
+⚠️  3 file(s) failed to download (server error):
+   - Staff/broken-card.json
+   - Student/corrupted.json
+
+These files may be broken on the server. Delete them from remote? [y/N]
+```
+
+> **Safety tip:** Before any destructive operation (deleting files, restoring checkpoints), create a checkpoint with a descriptive message:
+> ```bash
+> boxel history . -m "Before cleanup: removing broken server files"
+> ```
 
 ### Track & Watch
 
@@ -348,6 +371,20 @@ boxel sync . --prefer-local       # Push to Boxel server
 
 ## Critical Patterns
 
+### 0. Checkpoint Before Destructive Operations
+**Always create a checkpoint with a descriptive message before:**
+- Deleting files from server (`--prefer-local`, `push --delete`)
+- Restoring to an earlier checkpoint
+- Bulk cleanup operations
+
+```bash
+boxel history . -m "Before cleanup: removing sample data"
+# Now safe to proceed with destructive operation
+boxel sync . --prefer-local
+```
+
+This ensures you can always recover if something goes wrong.
+
 ### 1. Always Use `--prefer-local` After Restore
 ```bash
 boxel history . -r 3              # Deletes files locally
@@ -385,6 +422,38 @@ export class MyCard extends CardDef {
 }
 ```
 **NEVER** write compiled JSON blocks or base64-encoded imports.
+
+---
+
+## Local Workspace Organization
+
+When syncing multiple workspaces locally, organize them by **domain/username/realm** to mirror the Matrix ID structure (`@username:domain`):
+
+```
+boxel-workspaces/
+├── boxel.ai/                      # Production domain
+│   └── acme-corp/                 # Username
+│       ├── personal/              # Realm
+│       ├── project-atlas/
+│       └── inventory-tracker/
+└── stack.cards/                   # Staging domain
+    └── acme-corp/
+        └── sandbox/
+```
+
+**Benefits:**
+- Clear separation between production and staging environments
+- Matches the `@username:domain` profile ID format
+- Easy to identify which profile/environment a workspace belongs to
+
+**First-time sync to this structure:**
+```bash
+# Production workspace
+boxel pull https://app.boxel.ai/username/realm/ ./boxel-workspaces/boxel.ai/username/realm
+
+# Staging workspace
+boxel pull https://realms-staging.stack.cards/username/realm/ ./boxel-workspaces/stack.cards/username/realm
+```
 
 ---
 
@@ -508,6 +577,7 @@ cat ./Type/card-id.json
 | Files reverting after restore | Stop watch first, use `--prefer-local` after |
 | Watch not detecting changes | Check interval, verify workspace URL |
 | Definition changes not reflected | `boxel touch . Instance/file.json` |
+| "500 Internal Server Error" on files | Broken on server - sync will prompt to delete, or use `push --delete` |
 
 ---
 
