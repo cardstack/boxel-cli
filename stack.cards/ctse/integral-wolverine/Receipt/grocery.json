@@ -1,34 +1,110 @@
 {
   "data": {
+    "id": "https://realms-staging.stack.cards/ctse/integral-wolverine/Receipt/grocery",
+    "meta": {
+      "realmURL": "https://realms-staging.stack.cards/ctse/integral-wolverine/",
+      "realmInfo": {
+        "name": "Integral Wolverine",
+        "iconURL": "https://boxel-images.boxel.ai/icons/Letter-i.png",
+        "hostHome": null,
+        "visibility": "private",
+        "publishable": true,
+        "realmUserId": "@realm/ctse_integral-wolverine:stack.cards",
+        "interactHome": null,
+        "backgroundURL": "https://boxel-images.boxel.ai/background-images/4k-techno-floor.jpg",
+        "showAsCatalog": null,
+        "lastPublishedAt": null
+      },
+      "adoptsFrom": {
+        "name": "Receipt",
+        "module": "../receipt"
+      },
+      "lastModified": 1770508502,
+      "resourceCreatedAt": 1770502653
+    },
     "type": "card",
     "attributes": {
-      "merchantName": "Whole Foods Market",
-      "merchantAddress": "399 4th Street, San Francisco, CA 94107",
+      "tax": 3.86,
       "date": "Jan 18, 2024",
       "time": "6:23 PM",
       "items": [
-        { "name": "Organic Bananas", "quantity": 1, "price": 2.49 },
-        { "name": "Almond Milk (64oz)", "quantity": 2, "price": 9.98 },
-        { "name": "Free Range Eggs", "quantity": 1, "price": 7.99 },
-        { "name": "Sourdough Bread", "quantity": 1, "price": 5.99 },
-        { "name": "Organic Spinach", "quantity": 1, "price": 4.99 },
-        { "name": "Wild Salmon Fillet", "quantity": 1, "price": 18.99 },
-        { "name": "Avocados (3 pack)", "quantity": 1, "price": 5.99 },
-        { "name": "Greek Yogurt", "quantity": 2, "price": 11.98 },
-        { "name": "Olive Oil (750ml)", "quantity": 1, "price": 14.99 },
-        { "name": "Mixed Nuts", "quantity": 1, "price": 12.99 }
+        {
+          "name": "Organic Bananas",
+          "price": 2.49,
+          "quantity": 1
+        },
+        {
+          "name": "Almond Milk (64oz)",
+          "price": 9.98,
+          "quantity": 2
+        },
+        {
+          "name": "Free Range Eggs",
+          "price": 7.99,
+          "quantity": 1
+        },
+        {
+          "name": "Sourdough Bread",
+          "price": 5.99,
+          "quantity": 1
+        },
+        {
+          "name": "Organic Spinach",
+          "price": 4.99,
+          "quantity": 1
+        },
+        {
+          "name": "Wild Salmon Fillet",
+          "price": 18.99,
+          "quantity": 1
+        },
+        {
+          "name": "Avocados (3 pack)",
+          "price": 5.99,
+          "quantity": 1
+        },
+        {
+          "name": "Greek Yogurt",
+          "price": 11.98,
+          "quantity": 2
+        },
+        {
+          "name": "Olive Oil (750ml)",
+          "price": 14.99,
+          "quantity": 1
+        },
+        {
+          "name": "Mixed Nuts",
+          "price": 12.99,
+          "quantity": 1
+        }
       ],
-      "subtotal": 96.38,
-      "tax": 3.86,
+      "title": "Whole Foods Market - $100.24",
       "total": 100.24,
+      "cardInfo": {
+        "name": null,
+        "notes": null,
+        "summary": null,
+        "cardThumbnailURL": null
+      },
+      "lastFour": "1234",
+      "subtotal": 96.38,
+      "cardTitle": "Untitled Receipt",
+      "merchantName": "Whole Foods Market",
       "paymentMethod": "Apple Pay",
-      "lastFour": "1234"
+      "cardDescription": null,
+      "merchantAddress": "399 4th Street, San Francisco, CA 94107",
+      "cardThumbnailURL": null
     },
-    "meta": {
-      "adoptsFrom": {
-        "module": "../receipt",
-        "name": "Receipt"
+    "relationships": {
+      "cardInfo.theme": {
+        "links": {
+          "self": null
+        }
       }
+    },
+    "links": {
+      "self": "https://realms-staging.stack.cards/ctse/integral-wolverine/Receipt/grocery"
     }
   }
 }

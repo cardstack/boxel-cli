@@ -1,9 +1,16 @@
-import { CardDef, field, contains, containsMany, Component, FieldDef } from 'https://cardstack.com/base/card-api';
+import {
+  CardDef,
+  field,
+  contains,
+  containsMany,
+  Component,
+  FieldDef,
+} from 'https://cardstack.com/base/card-api';
 import StringField from 'https://cardstack.com/base/string';
 import NumberField from 'https://cardstack.com/base/number';
 import ReceiptIcon from '@cardstack/boxel-icons/receipt';
 
-class LineItem extends FieldDef {
+export class LineItem extends FieldDef {
   @field name = contains(StringField);
   @field quantity = contains(NumberField);
   @field price = contains(NumberField);
@@ -33,10 +40,10 @@ export class Receipt extends CardDef {
   // Atom: inline receipt reference
   static atom = class Atom extends Component<typeof Receipt> {
     <template>
-      <span class="receipt-atom">
-        <span class="icon">🧾</span>
-        <span class="merchant">{{@model.merchantName}}</span>
-        <span class="total">${{@model.total}}</span>
+      <span class='receipt-atom'>
+        <span class='icon'>🧾</span>
+        <span class='merchant'>{{@model.merchantName}}</span>
+        <span class='total'>${{@model.total}}</span>
       </span>
       <style scoped>
         .receipt-atom {
@@ -64,57 +71,57 @@ export class Receipt extends CardDef {
   // Embedded: thermal receipt style
   static embedded = class Embedded extends Component<typeof Receipt> {
     <template>
-      <div class="receipt-embedded">
-        <div class="receipt-paper">
-          <header class="merchant-header">
-            <div class="merchant-name">{{@model.merchantName}}</div>
+      <div class='receipt-embedded'>
+        <div class='receipt-paper'>
+          <header class='merchant-header'>
+            <div class='merchant-name'>{{@model.merchantName}}</div>
             {{#if @model.merchantAddress}}
-              <div class="merchant-address">{{@model.merchantAddress}}</div>
+              <div class='merchant-address'>{{@model.merchantAddress}}</div>
             {{/if}}
-            <div class="datetime">{{@model.date}} {{@model.time}}</div>
+            <div class='datetime'>{{@model.date}} {{@model.time}}</div>
           </header>
 
-          <div class="divider">--------------------------------</div>
+          <div class='divider'>--------------------------------</div>
 
-          <div class="items">
+          <div class='items'>
             {{#each @model.items as |item|}}
-              <div class="item-row">
-                <span class="item-name">{{item.name}}</span>
-                <span class="item-qty">x{{item.quantity}}</span>
-                <span class="item-price">${{item.price}}</span>
+              <div class='item-row'>
+                <span class='item-name'>{{item.name}}</span>
+                <span class='item-qty'>x{{item.quantity}}</span>
+                <span class='item-price'>${{item.price}}</span>
               </div>
             {{/each}}
           </div>
 
-          <div class="divider">--------------------------------</div>
+          <div class='divider'>--------------------------------</div>
 
-          <div class="totals">
-            <div class="total-row">
+          <div class='totals'>
+            <div class='total-row'>
               <span>Subtotal</span>
               <span>${{@model.subtotal}}</span>
             </div>
-            <div class="total-row">
+            <div class='total-row'>
               <span>Tax</span>
               <span>${{@model.tax}}</span>
             </div>
-            <div class="total-row grand-total">
+            <div class='total-row grand-total'>
               <span>TOTAL</span>
               <span>${{@model.total}}</span>
             </div>
           </div>
 
-          <div class="divider">--------------------------------</div>
+          <div class='divider'>--------------------------------</div>
 
-          <div class="payment">
+          <div class='payment'>
             <span>{{@model.paymentMethod}}</span>
             {{#if @model.lastFour}}
               <span>****{{@model.lastFour}}</span>
             {{/if}}
           </div>
 
-          <footer class="receipt-footer">
+          <footer class='receipt-footer'>
             <div>Thank you for your purchase!</div>
-            <div class="barcode">||||| |||| ||||| |||| |||||</div>
+            <div class='barcode'>||||| |||| ||||| |||| |||||</div>
           </footer>
         </div>
       </div>
@@ -128,7 +135,7 @@ export class Receipt extends CardDef {
           padding: 1rem;
           background: #fffef9;
           border: 1px solid #e5e5e5;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
           font-family: 'Courier New', Courier, monospace;
           font-size: 0.8rem;
           line-height: 1.4;
@@ -212,17 +219,17 @@ export class Receipt extends CardDef {
   // Isolated: detailed receipt view
   static isolated = class Isolated extends Component<typeof Receipt> {
     <template>
-      <article class="receipt-isolated">
-        <div class="receipt-card">
-          <header class="header">
-            <h1 class="merchant">{{@model.merchantName}}</h1>
-            <p class="address">{{@model.merchantAddress}}</p>
-            <p class="datetime">{{@model.date}} at {{@model.time}}</p>
+      <article class='receipt-isolated'>
+        <div class='receipt-card'>
+          <header class='header'>
+            <h1 class='merchant'>{{@model.merchantName}}</h1>
+            <p class='address'>{{@model.merchantAddress}}</p>
+            <p class='datetime'>{{@model.date}} at {{@model.time}}</p>
           </header>
 
-          <section class="items-section">
+          <section class='items-section'>
             <h2>Items</h2>
-            <table class="items-table">
+            <table class='items-table'>
               <thead>
                 <tr>
                   <th>Item</th>
@@ -242,16 +249,18 @@ export class Receipt extends CardDef {
             </table>
           </section>
 
-          <section class="totals-section">
-            <div class="row"><span>Subtotal</span><span>${{@model.subtotal}}</span></div>
-            <div class="row"><span>Tax</span><span>${{@model.tax}}</span></div>
-            <div class="row total"><span>Total</span><span>${{@model.total}}</span></div>
+          <section class='totals-section'>
+            <div class='row'><span>Subtotal</span><span
+              >${{@model.subtotal}}</span></div>
+            <div class='row'><span>Tax</span><span>${{@model.tax}}</span></div>
+            <div class='row total'><span>Total</span><span
+              >${{@model.total}}</span></div>
           </section>
 
-          <section class="payment-section">
-            <span class="method">{{@model.paymentMethod}}</span>
+          <section class='payment-section'>
+            <span class='method'>{{@model.paymentMethod}}</span>
             {{#if @model.lastFour}}
-              <span class="card">ending in {{@model.lastFour}}</span>
+              <span class='card'>ending in {{@model.lastFour}}</span>
             {{/if}}
           </section>
         </div>
@@ -266,7 +275,7 @@ export class Receipt extends CardDef {
         .receipt-card {
           background: white;
           border-radius: 16px;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
           overflow: hidden;
         }
         .header {
@@ -279,7 +288,8 @@ export class Receipt extends CardDef {
           margin: 0;
           font-size: 1.5rem;
         }
-        .address, .datetime {
+        .address,
+        .datetime {
           margin: 0.25rem 0 0;
           opacity: 0.8;
           font-size: 0.9rem;
@@ -297,7 +307,8 @@ export class Receipt extends CardDef {
           width: 100%;
           border-collapse: collapse;
         }
-        .items-table th, .items-table td {
+        .items-table th,
+        .items-table td {
           padding: 0.5rem;
           text-align: left;
           border-bottom: 1px solid #f0f0f0;

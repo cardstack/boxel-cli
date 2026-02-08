@@ -1,4 +1,9 @@
-import { CardDef, field, contains, Component } from 'https://cardstack.com/base/card-api';
+import {
+  CardDef,
+  field,
+  contains,
+  Component,
+} from 'https://cardstack.com/base/card-api';
 import StringField from 'https://cardstack.com/base/string';
 import MailIcon from '@cardstack/boxel-icons/mail';
 
@@ -22,10 +27,10 @@ export class Email extends CardDef {
   // Atom: inline email reference
   static atom = class Atom extends Component<typeof Email> {
     <template>
-      <span class="email-atom">
-        <span class="icon">✉️</span>
-        <span class="subject">{{@model.subject}}</span>
-        <span class="from">from {{@model.from}}</span>
+      <span class='email-atom'>
+        <span class='icon'>✉️</span>
+        <span class='subject'>{{@model.subject}}</span>
+        <span class='from'>from {{@model.from}}</span>
       </span>
       <style scoped>
         .email-atom {
@@ -38,7 +43,9 @@ export class Email extends CardDef {
           border-radius: 100px;
           font-size: 0.9em;
         }
-        .icon { font-size: 0.9em; }
+        .icon {
+          font-size: 0.9em;
+        }
         .subject {
           font-weight: 500;
           color: #1e40af;
@@ -55,6 +62,89 @@ export class Email extends CardDef {
     </template>
   };
 
+  // Fitted: compact grid view
+  static fitted = class Fitted extends Component<typeof Email> {
+    <template>
+      <div class='email-fitted'>
+        <div class='fitted-header'>
+          <span class='fitted-avatar'>{{@model.from.[0]}}</span>
+          <div class='fitted-info'>
+            <div class='fitted-subject'>{{@model.subject}}</div>
+            <div class='fitted-from'>{{@model.from}}</div>
+          </div>
+        </div>
+        <div class='fitted-preview'>{{@model.preview}}</div>
+        <time class='fitted-date'>{{@model.date}}</time>
+      </div>
+      <style scoped>
+        .email-fitted {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          padding: 0.75rem;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          height: 100%;
+          overflow: hidden;
+        }
+        .fitted-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .fitted-avatar {
+          width: 32px;
+          height: 32px;
+          background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: 600;
+          font-size: 0.9rem;
+          text-transform: uppercase;
+          flex-shrink: 0;
+        }
+        .fitted-info {
+          flex: 1;
+          min-width: 0;
+        }
+        .fitted-subject {
+          font-weight: 600;
+          font-size: 0.9rem;
+          color: #111827;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .fitted-from {
+          font-size: 0.8rem;
+          color: #6b7280;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .fitted-preview {
+          font-size: 0.85rem;
+          color: #6b7280;
+          line-height: 1.4;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+        .fitted-date {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          align-self: flex-end;
+        }
+      </style>
+    </template>
+  };
+
   // Embedded: email preview card
   static embedded = class Embedded extends Component<typeof Email> {
     get bodyParagraphs() {
@@ -62,26 +152,26 @@ export class Email extends CardDef {
     }
 
     <template>
-      <article class="email-embedded">
-        <header class="email-header">
-          <div class="header-row">
-            <span class="avatar">{{@model.from.[0]}}</span>
-            <div class="header-info">
-              <div class="from">{{@model.from}}</div>
-              <div class="to">to {{@model.to}}</div>
+      <article class='email-embedded'>
+        <header class='email-header'>
+          <div class='header-row'>
+            <span class='avatar'>{{@model.from.[0]}}</span>
+            <div class='header-info'>
+              <div class='from'>{{@model.from}}</div>
+              <div class='to'>to {{@model.to}}</div>
             </div>
-            <time class="date">{{@model.date}}</time>
+            <time class='date'>{{@model.date}}</time>
           </div>
-          <h2 class="subject">{{@model.subject}}</h2>
+          <h2 class='subject'>{{@model.subject}}</h2>
         </header>
-        <div class="email-body">
+        <div class='email-body'>
           {{#each this.bodyParagraphs as |paragraph|}}
             <p>{{paragraph}}</p>
           {{/each}}
         </div>
-        <footer class="email-footer">
-          <button class="action">↩️ Reply</button>
-          <button class="action">↪️ Forward</button>
+        <footer class='email-footer'>
+          <button class='action'>↩️ Reply</button>
+          <button class='action'>↪️ Forward</button>
         </footer>
       </article>
       <style scoped>
@@ -178,21 +268,21 @@ export class Email extends CardDef {
     }
 
     <template>
-      <article class="email-isolated">
-        <header class="header">
-          <h1 class="subject">{{@model.subject}}</h1>
-          <div class="meta-row">
-            <div class="avatar">{{@model.from.[0]}}</div>
-            <div class="meta-info">
-              <div class="from-line">
+      <article class='email-isolated'>
+        <header class='header'>
+          <h1 class='subject'>{{@model.subject}}</h1>
+          <div class='meta-row'>
+            <div class='avatar'>{{@model.from.[0]}}</div>
+            <div class='meta-info'>
+              <div class='from-line'>
                 <strong>{{@model.from}}</strong>
-                <span class="to">to {{@model.to}}</span>
+                <span class='to'>to {{@model.to}}</span>
               </div>
-              <time class="date">{{@model.date}}</time>
+              <time class='date'>{{@model.date}}</time>
             </div>
           </div>
         </header>
-        <div class="body">
+        <div class='body'>
           {{#each this.bodyParagraphs as |paragraph|}}
             <p>{{paragraph}}</p>
           {{/each}}
