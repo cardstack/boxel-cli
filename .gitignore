@@ -22,9 +22,10 @@ Thumbs.db
 *.swp
 *.swo
 
-# Test workspaces
+# Synced workspaces (local Boxel workspace directories)
 test-workspace/
 *-workspace/
+stack.cards/
 
 # Logs
 *.log
