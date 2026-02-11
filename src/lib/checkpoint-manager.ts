@@ -1,6 +1,7 @@
 import { execSync, spawnSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { isProtectedFile } from './realm-sync-base.js';
 
 export interface Checkpoint {
   hash: string;
@@ -105,7 +106,7 @@ export class CheckpointManager {
         if (entry.name === '.boxel-history' || entry.name === '.boxel-sync.json') {
           continue;
         }
-        if (entry.name.startsWith('.') && entry.name !== '.realm.json') {
+        if (entry.name.startsWith('.')) {
           continue;
         }
 
@@ -286,14 +287,12 @@ export class CheckpointManager {
     // - More than 3 files changed
     // - Any .gts file changed (card definition)
     // - Any file added or deleted
-    // - .realm.json changed
 
     if (changes.length > 3) return true;
 
     for (const change of changes) {
       if (change.status === 'added' || change.status === 'deleted') return true;
       if (change.file.endsWith('.gts')) return true;
-      if (change.file === '.realm.json') return true;
     }
 
     return false;
@@ -468,6 +467,7 @@ export class CheckpointManager {
 
     // Remove files that don't exist in the checkpoint
     for (const file of workspaceFiles) {
+      if (isProtectedFile(file)) continue;
       if (!historyFiles.includes(file)) {
         const filePath = path.join(this.workspaceDir, file);
         fs.unlinkSync(filePath);
@@ -476,6 +476,7 @@ export class CheckpointManager {
 
     // Copy files from history to workspace
     for (const file of historyFiles) {
+      if (isProtectedFile(file)) continue;
       const srcPath = path.join(this.gitDir, file);
       const destPath = path.join(this.workspaceDir, file);
 

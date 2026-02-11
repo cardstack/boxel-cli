@@ -6,6 +6,15 @@ import ignoreModule from 'ignore';
 const ignore = ignoreModule.default || ignoreModule;
 type Ignore = ReturnType<typeof ignore>;
 
+// Files that must never be pushed, deleted, or overwritten on the server via CLI.
+// These are server-managed config files - corrupting them can break a realm.
+export const PROTECTED_FILES = new Set(['.realm.json']);
+
+export function isProtectedFile(relativePath: string): boolean {
+  const normalizedPath = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  return PROTECTED_FILES.has(normalizedPath);
+}
+
 export const SupportedMimeType = {
   CardJson: 'application/vnd.card+json',
   CardSource: 'application/vnd.card+source',
@@ -142,27 +151,6 @@ export abstract class RealmSyncBase {
       throw error;
     }
 
-    // Check for .realm.json in root directory
-    if (!dir) {
-      try {
-        const realmJsonUrl = this.buildFileUrl('.realm.json');
-        const jwt = await this.realmAuthClient.getJWT();
-
-        const response = await fetch(realmJsonUrl, {
-          method: 'HEAD',
-          headers: {
-            Authorization: jwt,
-          },
-        });
-
-        if (response.ok) {
-          files.set('.realm.json', true);
-        }
-      } catch {
-        console.log('Note: .realm.json not found in remote realm');
-      }
-    }
-
     return files;
   }
 
@@ -289,6 +277,11 @@ export abstract class RealmSyncBase {
   }
 
   protected async uploadFile(relativePath: string, localPath: string): Promise<void> {
+    if (isProtectedFile(relativePath)) {
+      console.log(`  Skipped (protected): ${relativePath}`);
+      return;
+    }
+
     console.log(`Uploading: ${relativePath}`);
 
     if (this.options.dryRun) {
@@ -362,6 +355,11 @@ export abstract class RealmSyncBase {
   }
 
   protected async deleteFile(relativePath: string): Promise<void> {
+    if (isProtectedFile(relativePath)) {
+      console.log(`  Skipped (protected): ${relativePath}`);
+      return;
+    }
+
     console.log(`Deleting remote: ${relativePath}`);
 
     if (this.options.dryRun) {
@@ -451,9 +449,6 @@ export abstract class RealmSyncBase {
     }
 
     if (fileName.startsWith('.')) {
-      if (fileName === '.realm.json') {
-        return false;
-      }
       return true;
     }
 
@@ -467,9 +462,6 @@ export abstract class RealmSyncBase {
   private shouldIgnoreRemoteFile(relativePath: string): boolean {
     const fileName = path.basename(relativePath);
     if (fileName.startsWith('.')) {
-      if (fileName === '.realm.json') {
-        return false;
-      }
       return true;
     }
     return false;

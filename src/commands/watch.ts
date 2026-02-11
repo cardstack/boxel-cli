@@ -4,6 +4,7 @@ import { MatrixClient } from '../lib/matrix-client.js';
 import { RealmAuthClient } from '../lib/realm-auth-client.js';
 import { resolveWorkspace } from '../lib/workspace-resolver.js';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
+import { isProtectedFile } from '../lib/realm-sync-base.js';
 import { createHash } from 'crypto';
 import { getEditingFiles } from '../lib/edit-lock.js';
 import { getProfileManager, formatProfileBadge } from '../lib/profile-manager.js';
@@ -257,7 +258,7 @@ export async function watchCommand(
       for (const [fullUrl, mtime] of Object.entries(mtimesData)) {
         if (fullUrl.startsWith(realm.workspaceUrl)) {
           const relativePath = fullUrl.substring(realm.workspaceUrl.length);
-          if (relativePath && !relativePath.startsWith('_')) {
+          if (relativePath && !relativePath.startsWith('_') && !isProtectedFile(relativePath)) {
             remoteMtimes[relativePath] = mtime as number;
           }
         }
@@ -280,6 +281,7 @@ export async function watchCommand(
       }
 
       for (const file of Object.keys(realm.lastKnownState)) {
+        if (isProtectedFile(file)) continue;
         if (!(file in remoteMtimes) && !realm.pendingChanges.has(file)) {
           realm.pendingChanges.set(file, { status: 'deleted', mtime: 0 });
           hasNewChanges = true;

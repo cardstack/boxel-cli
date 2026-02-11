@@ -50,7 +50,7 @@ export async function trackCommand(
     for (const entry of entries) {
       // Skip internal files
       if (entry.name.startsWith('.boxel-') || entry.name === '.git') continue;
-      if (entry.name.startsWith('.') && entry.name !== '.realm.json') continue;
+      if (entry.name.startsWith('.')) continue;
 
       const fullPath = path.join(dir, entry.name);
       const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -153,7 +153,7 @@ export async function trackCommand(
       for (const entry of entries) {
         // Skip internal files
         if (entry.name.startsWith('.boxel-') || entry.name === '.git') continue;
-        if (entry.name.startsWith('.') && entry.name !== '.realm.json') continue;
+        if (entry.name.startsWith('.')) continue;
 
         const fullPath = path.join(dir, entry.name);
         const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -243,7 +243,7 @@ export async function trackCommand(
 
         // Skip internal files
         if (filename.startsWith('.boxel-') || filename.includes('.git')) return;
-        if (filename.startsWith('.') && filename !== '.realm.json') return;
+        if (filename.startsWith('.')) return;
 
         // Debounced check for changes
         checkForChanges();

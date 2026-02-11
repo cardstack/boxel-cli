@@ -1,4 +1,4 @@
-import { RealmSyncBase, validateMatrixEnvVars, type SyncOptions } from '../lib/realm-sync-base.js';
+import { RealmSyncBase, validateMatrixEnvVars, isProtectedFile, type SyncOptions } from '../lib/realm-sync-base.js';
 import { resolveWorkspace } from '../lib/workspace-resolver.js';
 import { MatrixClient } from '../lib/matrix-client.js';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
@@ -413,10 +413,15 @@ class RealmSyncer extends RealmSyncBase {
     isFirstSync: boolean,
   ): FileAction[] {
     const actions: FileAction[] = [];
-    // Use remoteFiles for existence check (includes dotfiles like .realm.json)
     const allPaths = new Set([...localFiles.keys(), ...remoteFiles.keys()]);
 
     for (const relativePath of allPaths) {
+      // Protected files (e.g. .realm.json) are server-managed and must never be
+      // pushed, deleted, or overwritten on the server via the CLI.
+      if (isProtectedFile(relativePath)) {
+        continue;
+      }
+
       const localPath = localFiles.get(relativePath);
       const remoteMtime = remoteMtimes.get(relativePath);
       const baseState = manifest?.files[relativePath];
@@ -461,7 +466,7 @@ class RealmSyncer extends RealmSyncBase {
         const localNew = hasLocal && !hasBase;
         const localDeleted = !hasLocal && hasBase;
 
-        // For remote change detection: if file exists but no mtime available (e.g., .realm.json),
+        // For remote change detection: if file exists but no mtime available,
         // we can't detect changes, so assume unchanged
         const remoteChanged = hasRemote && hasBase && remoteMtime !== undefined && remoteMtime !== baseState.remoteMtime;
         const remoteNew = hasRemote && !hasBase;
