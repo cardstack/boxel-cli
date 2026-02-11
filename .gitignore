@@ -8,7 +8,9 @@ dist/
 .env
 .env.local
 
-# Sync artifacts (workspace-specific)
+# Synced workspaces (never commit workspace content)
+stack.cards/
+boxel.ai/
 .boxel-sync.json
 .boxel-history/
 

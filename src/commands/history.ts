@@ -17,7 +17,7 @@ function scanWorkspaceForChanges(workspaceDir: string): CheckpointChange[] {
     for (const entry of entries) {
       // Skip internal files
       if (entry.name.startsWith('.boxel-') || entry.name === '.git') continue;
-      if (entry.name.startsWith('.') && entry.name !== '.realm.json') continue;
+      if (entry.name.startsWith('.')) continue;
 
       const fullPath = path.join(dir, entry.name);
       const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;

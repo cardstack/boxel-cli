@@ -4,6 +4,7 @@ import { MatrixClient } from '../lib/matrix-client.js';
 import { RealmAuthClient } from '../lib/realm-auth-client.js';
 import { resolveWorkspace } from '../lib/workspace-resolver.js';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
+import { isProtectedFile } from '../lib/realm-sync-base.js';
 import { createHash } from 'crypto';
 import { getEditingFiles } from '../lib/edit-lock.js';
 import { getProfileManager, formatProfileBadge } from '../lib/profile-manager.js';
@@ -266,6 +267,7 @@ export async function watchCommand(
       let hasNewChanges = false;
 
       for (const [file, mtime] of Object.entries(remoteMtimes)) {
+        if (isProtectedFile(file)) continue;
         if (!(file in realm.lastKnownState)) {
           if (!realm.pendingChanges.has(file) || realm.pendingChanges.get(file)!.mtime !== mtime) {
             realm.pendingChanges.set(file, { status: 'added', mtime });

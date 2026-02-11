@@ -1,4 +1,4 @@
-import { RealmSyncBase, validateMatrixEnvVars, type SyncOptions } from '../lib/realm-sync-base.js';
+import { RealmSyncBase, validateMatrixEnvVars, isProtectedFile, type SyncOptions } from '../lib/realm-sync-base.js';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -88,6 +88,7 @@ class RealmPusher extends RealmSyncBase {
         console.log('Workspace URL changed, will upload all files');
       }
       for (const [relativePath, localPath] of localFiles) {
+        if (isProtectedFile(relativePath)) continue;
         filesToUpload.set(relativePath, localPath);
       }
     } else {
@@ -96,6 +97,10 @@ class RealmPusher extends RealmSyncBase {
       let skipped = 0;
 
       for (const [relativePath, localPath] of localFiles) {
+        if (isProtectedFile(relativePath)) {
+          skipped++;
+          continue;
+        }
         const currentHash = computeFileHash(localPath);
         const previousHash = manifest.files[relativePath];
 
@@ -134,6 +139,13 @@ class RealmPusher extends RealmSyncBase {
     if (this.pushOptions.deleteRemote) {
       const remoteFiles = await this.getRemoteFileList();
       const filesToDelete = new Set(remoteFiles.keys());
+
+      // Never delete protected files from the server
+      for (const relativePath of filesToDelete) {
+        if (isProtectedFile(relativePath)) {
+          filesToDelete.delete(relativePath);
+        }
+      }
 
       for (const relativePath of localFiles.keys()) {
         filesToDelete.delete(relativePath);
