@@ -258,7 +258,7 @@ export async function watchCommand(
       for (const [fullUrl, mtime] of Object.entries(mtimesData)) {
         if (fullUrl.startsWith(realm.workspaceUrl)) {
           const relativePath = fullUrl.substring(realm.workspaceUrl.length);
-          if (relativePath && !relativePath.startsWith('_')) {
+          if (relativePath && !relativePath.startsWith('_') && !isProtectedFile(relativePath)) {
             remoteMtimes[relativePath] = mtime as number;
           }
         }
@@ -267,7 +267,6 @@ export async function watchCommand(
       let hasNewChanges = false;
 
       for (const [file, mtime] of Object.entries(remoteMtimes)) {
-        if (isProtectedFile(file)) continue;
         if (!(file in realm.lastKnownState)) {
           if (!realm.pendingChanges.has(file) || realm.pendingChanges.get(file)!.mtime !== mtime) {
             realm.pendingChanges.set(file, { status: 'added', mtime });
@@ -282,6 +281,7 @@ export async function watchCommand(
       }
 
       for (const file of Object.keys(realm.lastKnownState)) {
+        if (isProtectedFile(file)) continue;
         if (!(file in remoteMtimes) && !realm.pendingChanges.has(file)) {
           realm.pendingChanges.set(file, { status: 'deleted', mtime: 0 });
           hasNewChanges = true;

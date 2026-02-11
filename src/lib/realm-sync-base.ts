@@ -11,7 +11,8 @@ type Ignore = ReturnType<typeof ignore>;
 export const PROTECTED_FILES = new Set(['.realm.json']);
 
 export function isProtectedFile(relativePath: string): boolean {
-  return PROTECTED_FILES.has(relativePath);
+  const normalizedPath = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  return PROTECTED_FILES.has(normalizedPath);
 }
 
 export const SupportedMimeType = {
