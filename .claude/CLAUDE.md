@@ -157,6 +157,13 @@ Context-aware bidirectional sync:
 - After server changes → `--prefer-remote`
 - After restore → `--prefer-local` (essential for syncing deletions)
 
+### `/repair` - Realm Metadata/Card Repair
+Use when workspaces show missing icon/background, wrong display name, or fail to open due to broken `index.json`/`cards-grid.json` links.
+- Read `.claude/commands/repair.md` for the step-by-step repair flow.
+- `boxel repair-realm <url>` repairs one realm
+- `boxel repair-realms` repairs all owned realms (excluding `personal` by default)
+- Also reconciles Matrix account data (`app.boxel.realms`) unless disabled
+
 ---
 
 ## Commands Reference
@@ -285,6 +292,8 @@ boxel profile migrate             # Migrate from old .env file
 ```bash
 boxel list                        # List workspaces
 boxel create endpoint "Name"      # Create workspace
+boxel repair-realm <url>          # Repair one realm metadata/starter cards
+boxel repair-realms               # Batch repair all owned realms
 boxel pull <url> ./local          # One-way pull
 boxel push ./local <url>          # One-way push
 ```

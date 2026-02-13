@@ -15,6 +15,25 @@ interface ResolvedWorkspace {
   manifest?: SyncManifest;
 }
 
+function canonicalDomainFromHost(hostname: string): string {
+  if (hostname.endsWith('stack.cards')) {
+    return 'stack.cards';
+  }
+  if (hostname.endsWith('boxel.ai')) {
+    return 'boxel.ai';
+  }
+  return hostname;
+}
+
+function localDirForWorkspaceUrl(workspaceUrl: string): string {
+  const url = new URL(workspaceUrl);
+  const domain = canonicalDomainFromHost(url.hostname);
+  const parts = url.pathname.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
+  const owner = parts[0] ?? 'unknown-owner';
+  const realm = parts[1] ?? parts[0] ?? 'workspace';
+  return path.resolve(domain, owner, realm);
+}
+
 /**
  * Resolve workspace reference to local dir and URL.
  *
@@ -65,8 +84,8 @@ export async function resolveWorkspace(
       throw new Error(`Workspace not found: ${ref}\nAvailable: ${workspaces.map(w => '@' + new URL(w.url).pathname.replace(/^\/|\/$/g, '')).join(', ')}`);
     }
 
-    // Default local dir is the workspace name
-    const localDir = path.resolve(match.split('/').pop() || match);
+    // Default local dir follows domain/owner/realm structure.
+    const localDir = localDirForWorkspaceUrl(workspace.url);
 
     // Check if we have a local manifest
     const manifestPath = path.join(localDir, '.boxel-sync.json');
@@ -84,9 +103,7 @@ export async function resolveWorkspace(
 
   // Check if it's a full URL
   if (ref.startsWith('http://') || ref.startsWith('https://')) {
-    // For URLs, we need a local dir - derive from URL path
-    const urlPath = new URL(ref).pathname.replace(/^\/|\/$/g, '');
-    const localDir = path.resolve(urlPath.split('/').pop() || 'workspace');
+    const localDir = localDirForWorkspaceUrl(ref);
 
     // Check if we have a local manifest
     const manifestPath = path.join(localDir, '.boxel-sync.json');
@@ -186,8 +203,7 @@ export async function getAllWorkspacesStatus(matrixClient: MatrixClient): Promis
   return workspaces.map(w => {
     const urlPath = new URL(w.url).pathname.replace(/^\/|\/$/g, '');
     const shortName = '@' + urlPath;
-    const localDirName = urlPath.split('/').pop() || urlPath;
-    const localDir = path.resolve(localDirName);
+    const localDir = localDirForWorkspaceUrl(w.url);
     const manifestPath = path.join(localDir, '.boxel-sync.json');
     const hasSyncManifest = fs.existsSync(manifestPath);
 

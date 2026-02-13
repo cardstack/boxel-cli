@@ -21,6 +21,7 @@ import { shareCommand } from './commands/share.js';
 import { gatherCommand } from './commands/gather.js';
 import { realmsCommand } from './commands/realms.js';
 import { profileCommand } from './commands/profile.js';
+import { repairRealmCommand, repairRealmsCommand } from './commands/repair.js';
 import { loadConfig } from './lib/realm-config.js';
 
 const program = new Command();
@@ -321,6 +322,59 @@ program
   });
 
 program
+  .command('repair-realm')
+  .description('Repair one workspace metadata and starter cards (.realm.json, index.json, cards-grid.json)')
+  .argument('<workspace-url>', 'Workspace URL to repair (e.g., https://realms-staging.stack.cards/user/workspace/)')
+  .option('--name <name>', 'Explicit display name to set')
+  .option('--icon <url>', 'Explicit icon URL to set')
+  .option('--background <url>', 'Explicit background URL to set')
+  .option('--match-endpoint', 'Restore name to endpoint-derived title (e.g., welcome-gorilla -> Welcome Gorilla)')
+  .option('--include-personal', 'Allow repairing the special personal realm (skipped by default)')
+  .option('--force', 'Overwrite name/icon/background even if present')
+  .option('--no-fix-index', 'Skip index.json/cards-grid.json repair')
+  .option('--no-touch-index', 'Skip touch mutation in index.json meta')
+  .option('--reconcile-matrix', 'Also reconcile app.boxel.realms for this owner')
+  .option('--dry-run', 'Show proposed repairs without sending changes')
+  .action(async (workspaceUrl: string, options: {
+    name?: string;
+    icon?: string;
+    background?: string;
+    matchEndpoint?: boolean;
+    includePersonal?: boolean;
+    force?: boolean;
+    fixIndex?: boolean;
+    touchIndex?: boolean;
+    reconcileMatrix?: boolean;
+    dryRun?: boolean;
+  }) => {
+    await repairRealmCommand(workspaceUrl, options);
+  });
+
+program
+  .command('repair-realms')
+  .description('Batch repair all accessible realms for an owner and reconcile Matrix workspace list')
+  .option('--owner <username>', 'Owner username to repair (default: active profile username)')
+  .option('--match-endpoint', 'Restore names to endpoint-derived title case (default behavior)')
+  .option('--include-personal', 'Include the special personal realm (excluded by default)')
+  .option('--force', 'Force overwrite of name/icon/background')
+  .option('--no-fix-index', 'Skip index.json/cards-grid.json repair')
+  .option('--no-touch-index', 'Skip touch mutation in index.json meta')
+  .option('--no-reconcile-matrix', 'Skip app.boxel.realms reconciliation')
+  .option('--dry-run', 'Show proposed repairs without sending changes')
+  .action(async (options: {
+    owner?: string;
+    matchEndpoint?: boolean;
+    includePersonal?: boolean;
+    force?: boolean;
+    fixIndex?: boolean;
+    touchIndex?: boolean;
+    reconcileMatrix?: boolean;
+    dryRun?: boolean;
+  }) => {
+    await repairRealmsCommand(options);
+  });
+
+program
   .command('profile')
   .description('Manage saved profiles for different users/environments')
   .argument('[subcommand]', 'list | add | switch | remove | migrate')
@@ -354,6 +408,8 @@ Workspace References:
 Examples:
   boxel create my-project "My Project"   Create a new workspace
   boxel list                             List all accessible workspaces
+  boxel repair-realm https://...         Repair one realm metadata + starter cards
+  boxel repair-realms                    Batch repair all owned realms
 
   boxel status                     Check current directory
   boxel status @aallen90/personal  Check specific workspace by name

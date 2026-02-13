@@ -283,7 +283,38 @@ boxel check ./file.json --sync    # Auto-sync if needed
 ```bash
 boxel list                        # List your workspaces
 boxel create my-app "My App"      # Create new workspace
+boxel repair-realm https://realms-staging.stack.cards/user/my-app/    # Repair one realm
+boxel repair-realms               # Repair all your realms + reconcile Matrix list
 ```
+
+### Realm Repair (No Custom Scripts)
+
+Use these when a realm has missing/corrupt `.realm.json`, broken `index.json`/`cards-grid.json`,
+wrong display name, or stale Matrix `app.boxel.realms` entries.
+
+```bash
+# Preview one realm repair
+boxel repair-realm https://realms-staging.stack.cards/ctse/odd-sheep/ --dry-run
+
+# Apply one realm repair
+boxel repair-realm https://realms-staging.stack.cards/ctse/odd-sheep/
+
+# Batch repair all realms owned by active profile user (excludes personal by default)
+boxel repair-realms
+
+# Batch repair a specific owner and include personal realm
+boxel repair-realms --owner ctse --include-personal
+```
+
+What `repair` does:
+- Repairs `.realm.json` defaults (`name`, `iconURL`, `backgroundURL`)
+- Restores `index.json` relationship to `./cards-grid`
+- Restores `cards-grid.json` default card when missing/corrupt
+- Before overwriting `index.json` or `cards-grid.json`, copies existing content to unique backup files in the realm (for example, `index.backup-<timestamp>.json`)
+- Touches `index.json` (`data.meta._touched`) to break cache
+- Reconciles Matrix account data (`app.boxel.realms`) with repaired realms
+
+Detailed runbook: `docs/realm-repair.md`
 
 ### Multi-Realm Configuration
 

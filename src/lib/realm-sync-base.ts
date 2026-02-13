@@ -15,7 +15,6 @@ export function isProtectedFile(relativePath: string): boolean {
 }
 
 export const SupportedMimeType = {
-  CardJson: 'application/vnd.card+json',
   CardSource: 'application/vnd.card+source',
   DirectoryListing: 'application/vnd.api+json',
   Mtimes: 'application/vnd.api+json',
@@ -322,9 +321,9 @@ export abstract class RealmSyncBase {
     const url = this.buildFileUrl(relativePath);
     const jwt = await this.realmAuthClient.getJWT();
 
-    // Use appropriate Accept header based on file type
+    // Always fetch card files as source to avoid writing compiled card JSON locally.
     const acceptHeader = relativePath.endsWith('.json')
-      ? SupportedMimeType.CardJson
+      ? SupportedMimeType.CardSource
       : relativePath.endsWith('.gts')
         ? SupportedMimeType.CardSource
         : '*/*';

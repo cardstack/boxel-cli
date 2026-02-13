@@ -179,7 +179,7 @@ export async function watchCommand(
         headers: {
           'Authorization': realm.jwt,
           'Accept': file.endsWith('.json')
-            ? 'application/vnd.card+json'
+            ? 'application/vnd.card+source'
             : file.endsWith('.gts')
               ? 'application/vnd.card+source'
               : '*/*',

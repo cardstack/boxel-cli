@@ -141,6 +141,51 @@ export class MatrixClient {
     }
   }
 
+  async getAccountData<T>(type: string): Promise<T | null> {
+    if (!this.access) {
+      throw new Error('Must be logged in to get account data');
+    }
+
+    const response = await this.request(
+      `_matrix/client/v3/user/${encodeURIComponent(this.access.userId)}/account_data/${type}`,
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    const json = await response.json() as T;
+
+    if (!response.ok) {
+      throw new Error(
+        `Unable to get account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(json)}`,
+      );
+    }
+
+    return json;
+  }
+
+  async setAccountData<T>(type: string, data: T): Promise<void> {
+    if (!this.access) {
+      throw new Error('Must be logged in to set account data');
+    }
+
+    const response = await this.request(
+      `_matrix/client/v3/user/${encodeURIComponent(this.access.userId)}/account_data/${type}`,
+      'PUT',
+      {
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      const json = await response.json() as Record<string, unknown>;
+      throw new Error(
+        `Unable to set account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(json)}`,
+      );
+    }
+  }
+
   async getOpenIdToken(): Promise<{
     access_token: string;
     expires_in: number;
