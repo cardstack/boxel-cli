@@ -35,7 +35,23 @@ program
   .version('1.0.0');
 
 program.hook('preAction', (_thisCommand, actionCommand) => {
-  if (actionCommand.name() === 'consolidate-workspaces') {
+  const commandName = actionCommand.name();
+  const warningEligibleCommands = new Set([
+    'sync',
+    'status',
+    'check',
+    'watch',
+    'track',
+    'pull',
+    'push',
+    'touch',
+    'edit',
+    'history',
+    'list',
+    'remove',
+  ]);
+
+  if (!warningEligibleCommands.has(commandName)) {
     return;
   }
   warnIfLegacyWorkspacePaths(process.cwd());
@@ -366,7 +382,7 @@ program
   .option('--force', 'Overwrite name/icon/background even if present')
   .option('--no-fix-index', 'Skip index.json/cards-grid.json repair')
   .option('--no-touch-index', 'Skip touch mutation in index.json meta')
-  .option('--reconcile-matrix', 'Also reconcile app.boxel.realms for this owner')
+  .option('--reconcile-matrix', 'Also reconcile app.boxel.realms entry for this realm URL')
   .option('--dry-run', 'Show proposed repairs without sending changes')
   .action(async (workspaceUrl: string, options: {
     name?: string;

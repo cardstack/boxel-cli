@@ -52,10 +52,10 @@ function getCleanUsername(username: string): string {
   return username.replace(/^@/, '').replace(/:.*$/, '');
 }
 
-function isPersonalRealmURL(realmUrl: string, username: string): boolean {
+function isOwnedRealmURL(realmUrl: string, username: string): boolean {
   try {
-    const personalPrefix = `/${getCleanUsername(username)}/`;
-    return new URL(realmUrl).pathname.startsWith(personalPrefix);
+    const ownedPrefix = `/${getCleanUsername(username)}/`;
+    return new URL(realmUrl).pathname.startsWith(ownedPrefix);
   } catch {
     return false;
   }
@@ -80,6 +80,7 @@ async function appendRealmToAccountData(
   }
 
   await matrixClient.setAccountData(APP_BOXEL_REALMS_EVENT_TYPE, {
+    ...accountData,
     realms: [...existingRealms, normalizedRealmUrl],
   });
 
@@ -187,7 +188,7 @@ export async function createCommand(
     const realmUrl = result.data?.id;
 
     if (realmUrl) {
-      if (isPersonalRealmURL(realmUrl, username)) {
+      if (isOwnedRealmURL(realmUrl, username)) {
         let updatedAccountData = false;
         try {
           updatedAccountData = await appendRealmToAccountData(matrixClient, realmUrl);
@@ -202,7 +203,7 @@ export async function createCommand(
           console.log('Workspace already present in Matrix workspace list.');
         }
       } else {
-        console.log('Skipping Matrix workspace list update (created realm is not under your personal namespace).');
+        console.log('Skipping Matrix workspace list update (created realm is not under your user namespace).');
       }
     }
 

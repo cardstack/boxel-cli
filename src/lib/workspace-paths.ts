@@ -57,39 +57,42 @@ function tryReadManifest(manifestPath: string): SyncManifest | null {
   }
 }
 
-function findManifestPaths(rootDir: string, maxDepth = 6): string[] {
+function addManifestIfExists(dir: string, manifests: string[]): void {
+  const manifestPath = path.join(dir, '.boxel-sync.json');
+  if (fs.existsSync(manifestPath)) {
+    manifests.push(manifestPath);
+  }
+}
+
+function listSubdirs(dir: string): string[] {
+  try {
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !isSkippableDir(entry.name))
+      .map((entry) => path.join(dir, entry.name));
+  } catch {
+    return [];
+  }
+}
+
+function findManifestPaths(rootDir: string): string[] {
   const manifests: string[] = [];
+  const absoluteRoot = path.resolve(rootDir);
 
-  function walk(dir: string, depth: number): void {
-    if (depth > maxDepth) {
-      return;
-    }
+  // Legacy layout: <root>/<realm>/.boxel-sync.json
+  for (const childDir of listSubdirs(absoluteRoot)) {
+    addManifestIfExists(childDir, manifests);
+  }
 
-    const manifestPath = path.join(dir, '.boxel-sync.json');
-    if (fs.existsSync(manifestPath)) {
-      manifests.push(manifestPath);
-      return;
-    }
-
-    let entries: fs.Dirent[] = [];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) {
-        continue;
+  // Canonical layout: <root>/<domain>/<owner>/<realm>/.boxel-sync.json
+  for (const domainDir of listSubdirs(absoluteRoot)) {
+    for (const ownerDir of listSubdirs(domainDir)) {
+      for (const realmDir of listSubdirs(ownerDir)) {
+        addManifestIfExists(realmDir, manifests);
       }
-      if (isSkippableDir(entry.name)) {
-        continue;
-      }
-      walk(path.join(dir, entry.name), depth + 1);
     }
   }
 
-  walk(path.resolve(rootDir), 0);
   return manifests;
 }
 

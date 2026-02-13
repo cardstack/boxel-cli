@@ -154,15 +154,14 @@ export class MatrixClient {
       return null;
     }
 
-    const json = await response.json() as T;
-
     if (!response.ok) {
+      const errorBody = await this.safeReadErrorBody(response);
       throw new Error(
-        `Unable to get account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(json)}`,
+        `Unable to get account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(errorBody)}`,
       );
     }
 
-    return json;
+    return (await response.json()) as T;
   }
 
   async setAccountData<T>(type: string, data: T): Promise<void> {
@@ -179,10 +178,26 @@ export class MatrixClient {
     );
 
     if (!response.ok) {
-      const json = await response.json() as Record<string, unknown>;
+      const errorBody = await this.safeReadErrorBody(response);
       throw new Error(
-        `Unable to set account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(json)}`,
+        `Unable to set account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(errorBody)}`,
       );
+    }
+  }
+
+  private async safeReadErrorBody(response: Response): Promise<unknown> {
+    try {
+      const text = await response.text();
+      if (!text) {
+        return undefined;
+      }
+      try {
+        return JSON.parse(text) as unknown;
+      } catch {
+        return text;
+      }
+    } catch {
+      return '<unreadable response body>';
     }
   }
 

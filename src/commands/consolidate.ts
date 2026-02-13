@@ -12,6 +12,19 @@ function ensureDir(dirPath: string): void {
   }
 }
 
+function moveWorkspaceDir(from: string, to: string): void {
+  try {
+    fs.renameSync(from, to);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code !== 'EXDEV') {
+      throw err;
+    }
+    fs.cpSync(from, to, { recursive: true });
+    fs.rmSync(from, { recursive: true, force: true });
+  }
+}
+
 export async function consolidateWorkspacesCommand(
   rootDirInput: string | undefined,
   options: ConsolidateOptions,
@@ -45,8 +58,14 @@ export async function consolidateWorkspacesCommand(
     }
 
     ensureDir(path.dirname(entry.expectedDir));
-    fs.renameSync(entry.currentDir, entry.expectedDir);
-    moved += 1;
+    try {
+      moveWorkspaceDir(entry.currentDir, entry.expectedDir);
+      moved += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`  Skipping: failed to move (${message})`);
+      skipped += 1;
+    }
   }
 
   if (options.dryRun) {

@@ -49,7 +49,7 @@ const ICON_URLS: Record<string, string> = Object.freeze({
   w: 'https://boxel-images.boxel.ai/icons/Letter-w.png',
   x: 'https://boxel-images.boxel.ai/icons/Letter-x.png',
   y: 'https://boxel-images.boxel.ai/icons/Letter-y.png',
-  z: 'https://boxel-images.boxel.ai/icons/letter-z.png',
+  z: 'https://boxel-images.boxel.ai/icons/Letter-z.png',
 });
 
 const BACKGROUND_URLS: readonly string[] = Object.freeze([

@@ -32,7 +32,7 @@ boxel repair-realm <url> \
 ```
 
 - `--match-endpoint`: force display name from endpoint slug (for example, `odd-sheep` -> `Odd Sheep`)
-- `--reconcile-matrix`: update Matrix `app.boxel.realms` for that owner
+- `--reconcile-matrix`: upsert/remove this specific realm URL in Matrix `app.boxel.realms`
 - `--no-fix-index`: skip `index.json` and `cards-grid.json` repairs
 - `--no-touch-index`: skip cache-busting mutation in `index.json`
 - `--include-personal`: include the special `personal` realm (excluded by default)
@@ -47,7 +47,7 @@ boxel repair-realms \
 ```
 
 - `--owner`: repair realms for specific owner (default is active profile user)
-- `--no-reconcile-matrix`: skip Matrix list reconciliation
+- `--no-reconcile-matrix`: skip owner-wide Matrix list reconciliation
 - `--force`: overwrite existing metadata values, not just missing/bad ones
 
 ## Notes
