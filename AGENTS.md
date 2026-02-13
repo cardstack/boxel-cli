@@ -37,13 +37,14 @@ Trigger examples:
 - `pull`: remote -> local
 - `push`: local -> remote
 - `sync`: bidirectional conflict resolution
-- `track`: local file watching with auto-checkpoints only (does not push)
+- `track`: local file watching with auto-checkpoints (use `--push` for real-time server sync)
 - `watch`: remote change watching (pulls server changes)
 - `repair-realm`: repair one realm metadata + starter cards + optional Matrix reconciliation
 - `repair-realms`: batch repair all owned realms and reconcile Matrix realm list
 
 After local edits tracked with `track`, push to server with:
 - `boxel sync . --prefer-local`
+- Or use `boxel track . --push` for automatic real-time sync
 
 ## Onboarding Flow (When Needed)
 If user has no profile configured:
@@ -72,10 +73,14 @@ Example:
 - URL segment `Document/<id>` maps to local `Document/<id>.json`
 
 ## Useful Workflows
-### Local dev loop
+### Local dev loop (manual sync)
 1. `boxel track .`
 2. edit files
 3. `boxel sync . --prefer-local`
+
+### Local dev loop (real-time sync)
+1. `boxel track . --push`
+2. edit files (changes auto-pushed via batch upload)
 
 ### Monitor server changes
 1. `boxel watch .`
@@ -96,6 +101,13 @@ Example:
 - `.claude/commands/track.md`
 - `.claude/commands/restore.md`
 - `.claude/commands/setup.md`
+
+## Batch Upload API
+The CLI supports batch uploads via the `/_atomic` endpoint:
+- Used by `track --push` for efficient multi-file uploads
+- Sorts definitions (.gts) before instances (.json) for proper indexing
+- Fallback strategy: full batch → smaller batches → individual uploads
+- See `src/lib/batch-upload.ts` for implementation
 
 ## Notes for Agents Editing This Repo
 - Prefer minimal, targeted command changes in `src/commands/*.ts`.
