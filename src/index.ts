@@ -9,6 +9,7 @@ import { syncCommand } from './commands/sync.js';
 import { checkCommand } from './commands/check.js';
 import { statusCommand } from './commands/status.js';
 import { createCommand } from './commands/create.js';
+import { removeRealmCommand } from './commands/delete.js';
 import { historyCommand } from './commands/history.js';
 import { watchCommand } from './commands/watch.js';
 import { trackCommand } from './commands/track.js';
@@ -66,9 +67,11 @@ program
 program
   .command('list')
   .alias('ls')
-  .description('List all workspaces you have access to')
+  .description('List your workspaces (UI list by default)')
   .option('--json', 'Output as JSON')
-  .action(async (options: { json?: boolean }) => {
+  .option('--all-accessible', 'List all realms from _realm-auth (including hidden ones)')
+  .option('--hidden', 'List realms accessible to you but not in your UI workspace list')
+  .action(async (options: { json?: boolean; allAccessible?: boolean; hidden?: boolean }) => {
     await listCommand(options);
   });
 
@@ -126,6 +129,18 @@ program
   .action(async (endpoint: string, name: string, options: { background?: string; icon?: string }) => {
     await createCommand(endpoint, name, options);
   });
+
+program
+  .command('remove')
+  .description('Soft remove a workspace from your Matrix account list (does not delete server files)')
+  .argument('<workspace-url>', 'Workspace URL to remove from your account list')
+  .option('-y, --yes', 'Skip confirmation prompt')
+  .option('--dry-run', 'Show what would change without mutating account data')
+  .action(async (workspaceUrl: string, options: { yes?: boolean; dryRun?: boolean }) => {
+    await removeRealmCommand(workspaceUrl, options);
+  });
+
+
 
 program
   .command('history')
@@ -426,6 +441,7 @@ Workspace References:
 Examples:
   boxel create my-project "My Project"   Create a new workspace
   boxel list                             List all accessible workspaces
+  boxel remove https://...               Soft remove realm from your account list
   boxel consolidate-workspaces .         Move old local sync dirs into domain/owner/realm
   boxel repair-realm https://...         Repair one realm metadata + starter cards
   boxel repair-realms                    Batch repair all owned realms
