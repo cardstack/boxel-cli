@@ -49,7 +49,13 @@ export async function shareCommand(
       execSync('gh --version', { stdio: 'ignore' });
     } catch {
       console.error(`${FG_RED}Error:${RESET} GitHub CLI (gh) is required but not installed.`);
-      console.error('Install it with: brew install gh');
+      if (process.platform === 'win32') {
+        console.error('Install it with: winget install GitHub.cli');
+      } else if (process.platform === 'darwin') {
+        console.error('Install it with: brew install gh');
+      } else {
+        console.error('Install from: https://cli.github.com/');
+      }
       process.exit(1);
     }
   }

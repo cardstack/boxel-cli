@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { MatrixClient } from '../lib/matrix-client.js';
 import { RealmAuthClient } from '../lib/realm-auth-client.js';
 import { getProfileManager, formatProfileBadge, getEnvironmentFromMatrixId } from '../lib/profile-manager.js';
@@ -138,7 +139,7 @@ function extractTitleFromInstructions(instructions: string | undefined): string 
 }
 
 function getSkillsManifestPath(): string {
-  const homeDir = process.env.HOME || process.env.USERPROFILE || '.';
+  const homeDir = os.homedir();
   const claudeDir = path.join(homeDir, '.claude', 'boxel-skills');
 
   if (!fs.existsSync(claudeDir)) {

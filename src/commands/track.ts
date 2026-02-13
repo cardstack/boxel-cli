@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
+import { registerProcess, unregisterCurrentProcess } from '../lib/process-registry.js';
 
 interface TrackOptions {
   debounce?: number;
@@ -67,13 +68,14 @@ export async function trackCommand(
   initializeFileStates(workspaceDir);
 
   // Get workspace name for display
-  const urlParts = workspaceDir.split('/');
-  const workspaceName = urlParts[urlParts.length - 1];
+  const workspaceName = path.basename(workspaceDir);
 
   console.log(`⇆  Tracking local changes: ${workspaceName}`);
   console.log(`   Directory: ${workspaceDir}`);
   console.log(`   Debounce: ${debounceMs / 1000}s, Min interval: ${minIntervalMs / 1000}s`);
   console.log(`   Press Ctrl+C to stop\n`);
+
+  registerProcess('track', workspaceDir);
 
   let intervalTimer: NodeJS.Timeout | null = null;
 
@@ -267,7 +269,13 @@ export async function trackCommand(
   const pollInterval = setInterval(checkForChanges, 2000);
 
   // Handle graceful shutdown
-  process.on('SIGINT', () => {
+  let shuttingDown = false;
+  const shutdown = () => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+
     clearInterval(pollInterval);
     if (debounceTimer) {
       clearTimeout(debounceTimer);
@@ -288,8 +296,12 @@ export async function trackCommand(
     if (!options.quiet) {
       console.log('\n⇆  Tracking stopped');
     }
+    unregisterCurrentProcess();
     process.exit(0);
-  });
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 
   // Keep process alive
   await new Promise(() => {});

@@ -47,7 +47,7 @@ export async function checkCommand(
   let workspaceRoot = path.dirname(absolutePath);
   let manifestPath = '';
 
-  while (workspaceRoot !== '/') {
+  while (workspaceRoot !== path.dirname(workspaceRoot)) {
     const candidatePath = path.join(workspaceRoot, '.boxel-sync.json');
     if (fs.existsSync(candidatePath)) {
       manifestPath = candidatePath;
@@ -69,7 +69,7 @@ export async function checkCommand(
     : manifest.workspaceUrl + '/';
 
   // Get relative path from workspace root
-  const relativePath = path.relative(workspaceRoot, absolutePath);
+  const relativePath = path.relative(workspaceRoot, absolutePath).replace(/\\/g, '/');
 
   // Read local file
   const localContent = fs.readFileSync(absolutePath, 'utf-8');
@@ -176,7 +176,7 @@ export async function checkCommand(
       const fileUrl = new URL(relativePath, workspaceUrl).toString();
       const response = await fetch(fileUrl, {
         headers: {
-          'Authorization': `Bearer ${jwt}`,
+          'Authorization': jwt,
           'Accept': 'application/vnd.card+source'
         }
       });

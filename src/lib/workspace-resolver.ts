@@ -34,7 +34,7 @@ export async function resolveWorkspace(
   matrixClient?: MatrixClient
 ): Promise<ResolvedWorkspace> {
   // Check if it's a local path
-  if (ref === '.' || ref.startsWith('./') || ref.startsWith('/')) {
+  if (ref === '.' || ref.startsWith('./') || ref.startsWith('/') || path.isAbsolute(ref)) {
     const absoluteDir = path.resolve(ref);
     const manifestPath = path.join(absoluteDir, '.boxel-sync.json');
 
