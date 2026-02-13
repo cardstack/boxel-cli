@@ -242,8 +242,10 @@ These files may be broken on the server. Delete them from remote? [y/N]
 ```bash
 # Track LOCAL file changes (checkpoint as you edit in IDE)
 boxel track .                     # Track local edits, auto-checkpoint
+boxel track . --push              # Track AND push to server (real-time sync)
 boxel track . -d 5 -i 30          # 5s debounce, 30s min between checkpoints
 boxel track . -q                  # Quiet mode
+boxel track . -v                  # Verbose mode (debug output)
 
 # Watch REMOTE server changes (pull external updates)
 boxel watch .                     # Watch single workspace (30s default)
@@ -264,6 +266,7 @@ boxel status . --pull             # Auto-pull changes
 | Command | Symbol | Direction | Purpose |
 |---------|--------|-----------|---------|
 | `track` | ⇆ | Local → Checkpoints | Backup your IDE edits as you type |
+| `track --push` | ⇆→ | Local → Server | Real-time sync with batch upload |
 | `watch` | ⇅ | Server → Local | Pull external changes from Boxel web UI |
 
 ### History & Checkpoints
@@ -382,6 +385,14 @@ boxel sync . --prefer-local       # Push changes to server
 ```
 
 **Remember:** `track` does NOT sync to server - it only creates local checkpoints for safety. Always run `sync --prefer-local` when you want your changes live.
+
+### Active Development (with real-time sync)
+```bash
+boxel track . --push              # Track AND push to server automatically
+# Edit files in IDE - changes sync to Boxel server in real-time
+```
+
+**With `--push`:** Uses batch upload via `/_atomic` endpoint for efficient multi-file uploads. Definitions (`.gts`) are sorted before instances (`.json`) to ensure proper indexing on the server.
 
 ### Active Development (with edit lock)
 ```bash
