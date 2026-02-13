@@ -1,0 +1,256 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import {
+  sortDefinitionsFirst,
+  createBatches,
+  buildAtomicRequest,
+  type FileToUpload,
+} from '../../src/lib/batch-upload.js';
+
+let tmpDir: string;
+
+beforeEach(() => {
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'batch-upload-test-'));
+});
+
+afterEach(() => {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+describe('sortDefinitionsFirst', () => {
+  it('sorts .gts files before .json files', () => {
+    const files: FileToUpload[] = [
+      { relativePath: 'BlogPost/hello.json', localPath: '/tmp/a', operation: 'add' },
+      { relativePath: 'blog-post.gts', localPath: '/tmp/b', operation: 'add' },
+      { relativePath: 'Author/john.json', localPath: '/tmp/c', operation: 'add' },
+      { relativePath: 'author.gts', localPath: '/tmp/d', operation: 'add' },
+    ];
+
+    const sorted = sortDefinitionsFirst(files);
+
+    // .gts files should come first
+    expect(sorted[0].relativePath).toBe('author.gts');
+    expect(sorted[1].relativePath).toBe('blog-post.gts');
+    expect(sorted[2].relativePath).toBe('Author/john.json');
+    expect(sorted[3].relativePath).toBe('BlogPost/hello.json');
+  });
+
+  it('preserves alphabetical order within each group', () => {
+    const files: FileToUpload[] = [
+      { relativePath: 'z-card.gts', localPath: '/tmp/a', operation: 'add' },
+      { relativePath: 'a-card.gts', localPath: '/tmp/b', operation: 'add' },
+      { relativePath: 'm-card.gts', localPath: '/tmp/c', operation: 'add' },
+    ];
+
+    const sorted = sortDefinitionsFirst(files);
+
+    expect(sorted[0].relativePath).toBe('a-card.gts');
+    expect(sorted[1].relativePath).toBe('m-card.gts');
+    expect(sorted[2].relativePath).toBe('z-card.gts');
+  });
+
+  it('handles empty array', () => {
+    const sorted = sortDefinitionsFirst([]);
+    expect(sorted).toEqual([]);
+  });
+
+  it('handles single file', () => {
+    const files: FileToUpload[] = [
+      { relativePath: 'test.json', localPath: '/tmp/a', operation: 'add' },
+    ];
+    const sorted = sortDefinitionsFirst(files);
+    expect(sorted).toEqual(files);
+  });
+
+  it('does not mutate original array', () => {
+    const files: FileToUpload[] = [
+      { relativePath: 'b.json', localPath: '/tmp/a', operation: 'add' },
+      { relativePath: 'a.gts', localPath: '/tmp/b', operation: 'add' },
+    ];
+    const original = [...files];
+    sortDefinitionsFirst(files);
+    expect(files).toEqual(original);
+  });
+});
+
+describe('createBatches', () => {
+  function createTempFile(relativePath: string, content: string): FileToUpload {
+    const localPath = path.join(tmpDir, relativePath);
+    fs.mkdirSync(path.dirname(localPath), { recursive: true });
+    fs.writeFileSync(localPath, content);
+    return { relativePath, localPath, operation: 'add' };
+  }
+
+  it('creates single batch for files within limits', () => {
+    const files = [
+      createTempFile('a.json', '{"a":1}'),
+      createTempFile('b.json', '{"b":2}'),
+      createTempFile('c.json', '{"c":3}'),
+    ];
+
+    const batches = createBatches(files, { batchSize: 10, maxPayloadKB: 512 });
+
+    expect(batches.length).toBe(1);
+    expect(batches[0].length).toBe(3);
+  });
+
+  it('splits into multiple batches based on batchSize', () => {
+    const files = [
+      createTempFile('a.json', '{}'),
+      createTempFile('b.json', '{}'),
+      createTempFile('c.json', '{}'),
+      createTempFile('d.json', '{}'),
+      createTempFile('e.json', '{}'),
+    ];
+
+    const batches = createBatches(files, { batchSize: 2, maxPayloadKB: 512 });
+
+    expect(batches.length).toBe(3);
+    expect(batches[0].length).toBe(2);
+    expect(batches[1].length).toBe(2);
+    expect(batches[2].length).toBe(1);
+  });
+
+  it('splits based on payload size', () => {
+    // Each file is about 100 bytes
+    const content = '{"data":"' + 'x'.repeat(90) + '"}';
+    const files = [
+      createTempFile('a.json', content),
+      createTempFile('b.json', content),
+      createTempFile('c.json', content),
+    ];
+
+    // Max 200 bytes, so 2 files per batch
+    const batches = createBatches(files, { batchSize: 10, maxPayloadKB: 0.2 });
+
+    expect(batches.length).toBe(2);
+  });
+
+  it('puts oversized files in their own batch', () => {
+    const normalContent = '{"small":"data"}';
+    const hugeContent = '{"big":"' + 'x'.repeat(1000) + '"}';
+
+    const files = [
+      createTempFile('small1.json', normalContent),
+      createTempFile('huge.json', hugeContent),
+      createTempFile('small2.json', normalContent),
+    ];
+
+    // Max 500 bytes - huge file exceeds this
+    const batches = createBatches(files, { batchSize: 10, maxPayloadKB: 0.5 });
+
+    expect(batches.length).toBe(3);
+    // Huge file should be alone
+    const hugeBatch = batches.find(b => b.some(f => f.relativePath === 'huge.json'));
+    expect(hugeBatch?.length).toBe(1);
+  });
+
+  it('handles empty array', () => {
+    const batches = createBatches([], { batchSize: 10, maxPayloadKB: 512 });
+    expect(batches).toEqual([]);
+  });
+
+  it('caches file content for later use', () => {
+    const files = [
+      createTempFile('a.json', '{"content":"test"}'),
+    ];
+
+    createBatches(files, { batchSize: 10, maxPayloadKB: 512 });
+
+    expect(files[0].content).toBe('{"content":"test"}');
+  });
+});
+
+describe('buildAtomicRequest', () => {
+  function createFile(relativePath: string, content: string): FileToUpload {
+    return { relativePath, localPath: '/tmp/fake', content, operation: 'add' as const };
+  }
+
+  it('builds request with source type for .gts files', () => {
+    const files = [
+      createFile('my-card.gts', 'export class MyCard extends CardDef {}'),
+    ];
+
+    const request = buildAtomicRequest(files, 'https://realm.test/user/workspace/');
+
+    expect(request['atomic:operations'].length).toBe(1);
+    const op = request['atomic:operations'][0];
+    expect(op.op).toBe('add');
+    expect(op.href).toBe('https://realm.test/user/workspace/my-card.gts');
+    expect(op.data.type).toBe('source');
+    expect(op.data.attributes?.content).toBe('export class MyCard extends CardDef {}');
+  });
+
+  it('builds request with card type for .json files', () => {
+    const cardJson = {
+      data: {
+        attributes: { title: 'Hello' },
+        meta: { adoptsFrom: { module: './blog-post', name: 'BlogPost' } },
+      },
+    };
+    const files = [
+      createFile('BlogPost/hello.json', JSON.stringify(cardJson)),
+    ];
+
+    const request = buildAtomicRequest(files, 'https://realm.test/user/workspace/');
+
+    expect(request['atomic:operations'].length).toBe(1);
+    const op = request['atomic:operations'][0];
+    expect(op.op).toBe('add');
+    expect(op.href).toBe('https://realm.test/user/workspace/BlogPost/hello.json');
+    expect(op.data.type).toBe('card');
+    expect(op.data.attributes?.title).toBe('Hello');
+    expect(op.data.meta?.adoptsFrom).toEqual({ module: './blog-post', name: 'BlogPost' });
+  });
+
+  it('handles update operations', () => {
+    const files: FileToUpload[] = [
+      { relativePath: 'test.gts', localPath: '/tmp/fake', content: 'code', operation: 'update' },
+    ];
+
+    const request = buildAtomicRequest(files, 'https://realm.test/');
+
+    expect(request['atomic:operations'][0].op).toBe('update');
+  });
+
+  it('falls back to file type for invalid JSON', () => {
+    const files = [
+      createFile('bad.json', 'not valid json {{'),
+    ];
+
+    const request = buildAtomicRequest(files, 'https://realm.test/');
+
+    const op = request['atomic:operations'][0];
+    expect(op.data.type).toBe('file');
+    expect(op.data.attributes?.content).toBe('not valid json {{');
+  });
+
+  it('handles multiple files', () => {
+    const files = [
+      createFile('a.gts', 'code1'),
+      createFile('b.gts', 'code2'),
+      createFile('Card/c.json', '{"data":{"attributes":{"x":1}}}'),
+    ];
+
+    const request = buildAtomicRequest(files, 'https://realm.test/');
+
+    expect(request['atomic:operations'].length).toBe(3);
+  });
+
+  it('handles card JSON without data wrapper', () => {
+    const cardJson = {
+      attributes: { name: 'Test' },
+    };
+    const files = [
+      createFile('Card/test.json', JSON.stringify(cardJson)),
+    ];
+
+    const request = buildAtomicRequest(files, 'https://realm.test/');
+
+    const op = request['atomic:operations'][0];
+    expect(op.data.type).toBe('card');
+    expect(op.data.attributes?.name).toBe('Test');
+  });
+});
