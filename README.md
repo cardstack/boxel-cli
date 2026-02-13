@@ -10,6 +10,22 @@ Edit Boxel cards locally with your IDE or AI agent, sync changes instantly, and 
 
 ## Installation
 
+### Platform Support
+
+Boxel CLI supports:
+- macOS
+- Linux
+- Windows (PowerShell / Command Prompt)
+
+Requirements:
+- Node.js 18+
+- Git
+
+For `boxel share` PR creation, install GitHub CLI (`gh`):
+- Windows: `winget install GitHub.cli`
+- macOS: `brew install gh`
+- Linux: see [cli.github.com](https://cli.github.com/)
+
 ```bash
 git clone https://github.com/cardstack/boxel-cli.git
 cd boxel-cli
