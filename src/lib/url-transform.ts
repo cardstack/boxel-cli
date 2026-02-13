@@ -249,3 +249,106 @@ export function makeRealmFilePortable(content: string, realmUrl: string): string
     return content;
   }
 }
+
+/**
+ * Known Boxel realm server hosts and their path structure.
+ * Realm URLs follow the pattern: https://{host}/{owner}/{realm}/
+ */
+const BOXEL_HOSTS = [
+  'app.boxel.ai',
+  'realms-staging.stack.cards',
+  'realms.stack.cards',
+];
+
+/**
+ * Extract the realm base URL from a user-provided URL.
+ *
+ * Users often paste full card URLs or index URLs. This function extracts
+ * just the realm portion.
+ *
+ * @example
+ * // Card instance URL
+ * extractRealmUrl('https://app.boxel.ai/acme/workspace/BlogPost/abc123')
+ * // => 'https://app.boxel.ai/acme/workspace/'
+ *
+ * @example
+ * // Index URL
+ * extractRealmUrl('https://realms-staging.stack.cards/ctse/smart-bank/index')
+ * // => 'https://realms-staging.stack.cards/ctse/smart-bank/'
+ *
+ * @example
+ * // Already a realm URL
+ * extractRealmUrl('https://app.boxel.ai/acme/workspace/')
+ * // => 'https://app.boxel.ai/acme/workspace/'
+ *
+ * @example
+ * // With trailing cruft
+ * extractRealmUrl('https://app.boxel.ai/acme/workspace/index.json')
+ * // => 'https://app.boxel.ai/acme/workspace/'
+ */
+export function extractRealmUrl(input: string): string {
+  // Trim whitespace
+  input = input.trim();
+
+  // Try to parse as URL
+  const url = maybeURL(input);
+  if (!url) {
+    // Not a valid URL, return as-is
+    return input;
+  }
+
+  // Check if this is a known Boxel host
+  const isBoxelHost = BOXEL_HOSTS.some(host => url.host === host);
+
+  // Get path segments (filter out empty strings from leading/trailing slashes)
+  const segments = url.pathname.split('/').filter(s => s.length > 0);
+
+  if (isBoxelHost) {
+    // Boxel realm URLs: /{owner}/{realm}/...
+    // Extract first two segments as the realm path
+    if (segments.length >= 2) {
+      const owner = segments[0];
+      const realm = segments[1];
+      return `${url.origin}/${owner}/${realm}/`;
+    }
+    // Only owner, no realm - return as-is with trailing slash
+    if (segments.length === 1) {
+      return `${url.origin}/${segments[0]}/`;
+    }
+    // No path segments
+    return `${url.origin}/`;
+  }
+
+  // For unknown hosts, apply heuristics to strip common suffixes
+  let path = url.pathname;
+
+  // Remove common file suffixes
+  path = path.replace(/\/index\.json$/, '/');
+  path = path.replace(/\/index$/, '/');
+  path = path.replace(/\/cards-grid\.json$/, '/');
+  path = path.replace(/\/cards-grid$/, '/');
+
+  // Remove card instance paths (e.g., /CardType/uuid or /CardType/name)
+  // Pattern: /{PascalCaseType}/{id-or-name}
+  const cardPathMatch = path.match(/^(.+?)\/([A-Z][a-zA-Z0-9]*\/[^\/]+)\/?$/);
+  if (cardPathMatch) {
+    path = cardPathMatch[1] + '/';
+  }
+
+  // Ensure trailing slash
+  if (!path.endsWith('/')) {
+    path += '/';
+  }
+
+  return `${url.origin}${path}`;
+}
+
+/**
+ * Normalize a realm URL to ensure consistent formatting.
+ * - Ensures trailing slash
+ * - Removes /index suffix
+ * - Lowercases the origin
+ */
+export function normalizeRealmUrl(url: string): string {
+  return extractRealmUrl(url);
+}

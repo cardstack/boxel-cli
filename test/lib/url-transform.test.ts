@@ -5,6 +5,7 @@ import {
   maybeRelativeURL,
   transformUrlsToRelative,
   makeRealmFilePortable,
+  extractRealmUrl,
 } from '../../src/lib/url-transform.js';
 
 describe('maybeURL', () => {
@@ -310,5 +311,94 @@ describe('makeRealmFilePortable', () => {
     expect(parsed.data.attributes.title).toBe('My Title');
     expect(parsed.data.attributes.count).toBe(42);
     expect(parsed.data.attributes.nested.key).toBe('value');
+  });
+});
+
+describe('extractRealmUrl', () => {
+
+  describe('production URLs (app.boxel.ai)', () => {
+    it('extracts realm from card instance URL', () => {
+      const url = 'https://app.boxel.ai/acme/workspace/BlogPost/abc123';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/acme/workspace/');
+    });
+
+    it('extracts realm from index URL', () => {
+      const url = 'https://app.boxel.ai/acme/workspace/index';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/acme/workspace/');
+    });
+
+    it('extracts realm from index.json URL', () => {
+      const url = 'https://app.boxel.ai/acme/workspace/index.json';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/acme/workspace/');
+    });
+
+    it('normalizes realm URL with trailing slash', () => {
+      const url = 'https://app.boxel.ai/acme/workspace';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/acme/workspace/');
+    });
+
+    it('preserves realm URL that already has trailing slash', () => {
+      const url = 'https://app.boxel.ai/acme/workspace/';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/acme/workspace/');
+    });
+
+    it('extracts realm from deeply nested card path', () => {
+      const url = 'https://app.boxel.ai/tribecaprep/employee-handbook/Document/d8341312-f3a0-442b-a2e5-49c5cdd84695';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/tribecaprep/employee-handbook/');
+    });
+
+    it('handles cards-grid URL', () => {
+      const url = 'https://app.boxel.ai/acme/workspace/cards-grid';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/acme/workspace/');
+    });
+  });
+
+  describe('staging URLs (realms-staging.stack.cards)', () => {
+    it('extracts realm from index URL', () => {
+      const url = 'https://realms-staging.stack.cards/ctse/smart-bank/index';
+      expect(extractRealmUrl(url)).toBe('https://realms-staging.stack.cards/ctse/smart-bank/');
+    });
+
+    it('extracts realm from card instance URL', () => {
+      const url = 'https://realms-staging.stack.cards/ctse/smart-bank/Transaction/txn-001';
+      expect(extractRealmUrl(url)).toBe('https://realms-staging.stack.cards/ctse/smart-bank/');
+    });
+
+    it('normalizes realm URL without trailing slash', () => {
+      const url = 'https://realms-staging.stack.cards/ctse/smart-bank';
+      expect(extractRealmUrl(url)).toBe('https://realms-staging.stack.cards/ctse/smart-bank/');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles URL with only owner (no realm)', () => {
+      const url = 'https://app.boxel.ai/acme';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/acme/');
+    });
+
+    it('handles root URL', () => {
+      const url = 'https://app.boxel.ai/';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/');
+    });
+
+    it('handles URL with whitespace', () => {
+      const url = '  https://app.boxel.ai/acme/workspace/index  ';
+      expect(extractRealmUrl(url)).toBe('https://app.boxel.ai/acme/workspace/');
+    });
+
+    it('returns invalid input as-is', () => {
+      const input = 'not-a-url';
+      expect(extractRealmUrl(input)).toBe('not-a-url');
+    });
+
+    it('handles unknown hosts with index suffix', () => {
+      const url = 'https://custom-realm.example.com/my/path/index';
+      expect(extractRealmUrl(url)).toBe('https://custom-realm.example.com/my/path/');
+    });
+
+    it('handles unknown hosts with card path pattern', () => {
+      const url = 'https://custom-realm.example.com/my/path/BlogPost/hello';
+      expect(extractRealmUrl(url)).toBe('https://custom-realm.example.com/my/path/');
+    });
   });
 });
