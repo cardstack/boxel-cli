@@ -4,7 +4,6 @@ This file adapts `.claude/CLAUDE.md` for Codex agents working in this repo.
 
 ## Repository
 - Official repo: [cardstack/boxel-cli](https://github.com/cardstack/boxel-cli)
-- Primary project root: `/Users/chris/Documents/GitHub/boxel-cli/boxel-cli`
 
 ## Running Commands
 - Build once: `npm install && npm run build`
@@ -101,6 +100,15 @@ Example:
 - `.claude/commands/track.md`
 - `.claude/commands/restore.md`
 - `.claude/commands/setup.md`
+
+## Share & Gather (GitHub Workflow)
+Share workspace to GitHub repo, gather changes back:
+```bash
+boxel share . -t /path/to/repo -b branch-name --no-pr
+boxel gather . -s /path/to/repo
+```
+
+**URL Portability:** Share/gather automatically convert absolute realm URLs in `index.json` and `cards-grid.json` to relative paths, making content portable across different realms.
 
 ## Batch Upload API
 The CLI supports batch uploads via the `/_atomic` endpoint:

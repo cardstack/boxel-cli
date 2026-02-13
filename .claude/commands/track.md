@@ -21,11 +21,17 @@ Use **track** when you're editing files locally (in IDE, with AI agent, etc.) an
 # Start tracking (default: 3s debounce, 10s min interval)
 boxel track .
 
+# Track AND auto-push to server (real-time sync)
+boxel track . --push
+
 # Custom timing (5s debounce, 30s between checkpoints)
 boxel track . -d 5 -i 30
 
 # Quiet mode (only show checkpoints)
 boxel track . -q
+
+# Verbose mode (debug output)
+boxel track . -v
 
 # Stop all track/watch processes
 boxel stop
@@ -33,7 +39,8 @@ boxel stop
 
 ## The Track → Sync Workflow
 
-**IMPORTANT:** Track only creates local checkpoints. To push changes to the Boxel server:
+### Option 1: Manual Sync (Default)
+Track creates local checkpoints only. Push to server when ready:
 
 ```bash
 # 1. Track creates checkpoints as you edit
@@ -43,10 +50,20 @@ boxel track .
 boxel sync . --prefer-local
 ```
 
-Track does NOT automatically sync to the server. This is intentional - it lets you:
+This lets you:
 - Work offline with local backups
 - Batch multiple edits before pushing
 - Review changes before they go live
+
+### Option 2: Real-Time Sync (--push)
+Auto-push changes to server as you edit:
+
+```bash
+# Track AND push changes automatically
+boxel track . --push
+```
+
+Uses batch upload via `/_atomic` endpoint for efficient multi-file uploads. Definitions (.gts) are uploaded before instances (.json) to ensure proper indexing.
 
 ## Context Detection
 
@@ -69,9 +86,9 @@ When invoked, consider:
 When invoked:
 1. Confirm workspace directory
 2. Start track with appropriate settings
-3. **Remind user to sync when ready to push changes**
+3. **Remind user about sync options**
 
-Example:
+Example (without --push):
 ```
 Starting track in the current workspace (3s debounce, 10s interval).
 Checkpoints will be created automatically as you save files.
@@ -80,5 +97,16 @@ Remember: Track creates LOCAL checkpoints only.
 When ready to push changes to Boxel server:
   boxel sync . --prefer-local
 
+Or restart with --push for real-time sync:
+  boxel track . --push
+
 Use Ctrl+C to stop tracking, or `boxel stop` from another terminal.
+```
+
+Example (with --push):
+```
+Starting track with auto-push (3s debounce, 10s interval).
+Changes will be checkpointed AND pushed to server automatically.
+
+Use Ctrl+C to stop, or `boxel stop` from another terminal.
 ```
