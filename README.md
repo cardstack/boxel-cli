@@ -283,6 +283,7 @@ boxel check ./file.json --sync    # Auto-sync if needed
 ```bash
 boxel list                        # List your workspaces
 boxel create my-app "My App"      # Create new workspace
+boxel consolidate-workspaces .    # Move legacy local dirs to domain/owner/realm
 boxel repair-realm https://realms-staging.stack.cards/user/my-app/    # Repair one realm
 boxel repair-realms               # Repair all your realms + reconcile Matrix list
 ```

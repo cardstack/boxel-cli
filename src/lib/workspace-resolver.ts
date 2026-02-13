@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MatrixClient } from './matrix-client.js';
 import { RealmAuthClient } from './realm-auth-client.js';
+import { absoluteStructuredPathForWorkspaceUrl } from './workspace-paths.js';
 
 interface SyncManifest {
   workspaceUrl: string;
@@ -15,23 +16,8 @@ interface ResolvedWorkspace {
   manifest?: SyncManifest;
 }
 
-function canonicalDomainFromHost(hostname: string): string {
-  if (hostname.endsWith('stack.cards')) {
-    return 'stack.cards';
-  }
-  if (hostname.endsWith('boxel.ai')) {
-    return 'boxel.ai';
-  }
-  return hostname;
-}
-
 function localDirForWorkspaceUrl(workspaceUrl: string): string {
-  const url = new URL(workspaceUrl);
-  const domain = canonicalDomainFromHost(url.hostname);
-  const parts = url.pathname.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
-  const owner = parts[0] ?? 'unknown-owner';
-  const realm = parts[1] ?? parts[0] ?? 'workspace';
-  return path.resolve(domain, owner, realm);
+  return absoluteStructuredPathForWorkspaceUrl(workspaceUrl, process.cwd());
 }
 
 /**

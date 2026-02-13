@@ -292,6 +292,7 @@ boxel profile migrate             # Migrate from old .env file
 ```bash
 boxel list                        # List workspaces
 boxel create endpoint "Name"      # Create workspace
+boxel consolidate-workspaces .    # Move legacy local dirs into domain/owner/realm
 boxel repair-realm <url>          # Repair one realm metadata/starter cards
 boxel repair-realms               # Batch repair all owned realms
 boxel pull <url> ./local          # One-way pull

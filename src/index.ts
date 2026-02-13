@@ -22,7 +22,9 @@ import { gatherCommand } from './commands/gather.js';
 import { realmsCommand } from './commands/realms.js';
 import { profileCommand } from './commands/profile.js';
 import { repairRealmCommand, repairRealmsCommand } from './commands/repair.js';
+import { consolidateWorkspacesCommand } from './commands/consolidate.js';
 import { loadConfig } from './lib/realm-config.js';
+import { warnIfLegacyWorkspacePaths } from './lib/workspace-paths.js';
 
 const program = new Command();
 
@@ -30,6 +32,13 @@ program
   .name('boxel')
   .description('CLI tools for syncing files between local directories and Boxel workspaces')
   .version('1.0.0');
+
+program.hook('preAction', (_thisCommand, actionCommand) => {
+  if (actionCommand.name() === 'consolidate-workspaces') {
+    return;
+  }
+  warnIfLegacyWorkspacePaths(process.cwd());
+});
 
 program
   .command('push')
@@ -322,6 +331,15 @@ program
   });
 
 program
+  .command('consolidate-workspaces')
+  .description('Move legacy local workspace dirs into domain/owner/realm structure')
+  .argument('[root-dir]', 'Root directory to scan (default: current directory)')
+  .option('--dry-run', 'Show what would move without making changes')
+  .action(async (rootDir: string | undefined, options: { dryRun?: boolean }) => {
+    await consolidateWorkspacesCommand(rootDir, options);
+  });
+
+program
   .command('repair-realm')
   .description('Repair one workspace metadata and starter cards (.realm.json, index.json, cards-grid.json)')
   .argument('<workspace-url>', 'Workspace URL to repair (e.g., https://realms-staging.stack.cards/user/workspace/)')
@@ -408,6 +426,7 @@ Workspace References:
 Examples:
   boxel create my-project "My Project"   Create a new workspace
   boxel list                             List all accessible workspaces
+  boxel consolidate-workspaces .         Move old local sync dirs into domain/owner/realm
   boxel repair-realm https://...         Repair one realm metadata + starter cards
   boxel repair-realms                    Batch repair all owned realms
 
