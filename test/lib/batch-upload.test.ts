@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -6,6 +6,9 @@ import {
   sortDefinitionsFirst,
   createBatches,
   buildAtomicRequest,
+  uploadBatch,
+  uploadSingleFile,
+  uploadWithBatching,
   type FileToUpload,
 } from '../../src/lib/batch-upload.js';
 
@@ -252,5 +255,358 @@ describe('buildAtomicRequest', () => {
     const op = request['atomic:operations'][0];
     expect(op.data.type).toBe('card');
     expect(op.data.attributes?.name).toBe('Test');
+  });
+});
+
+describe('uploadBatch', () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('returns success for dry run without making requests', async () => {
+    const mockFetch = vi.fn();
+    globalThis.fetch = mockFetch;
+
+    const files: FileToUpload[] = [
+      { relativePath: 'test.gts', localPath: '/tmp/fake', content: 'code', operation: 'add' },
+    ];
+
+    const result = await uploadBatch(files, 'https://realm.test/', 'jwt-token', { dryRun: true });
+
+    expect(result.success).toBe(true);
+    expect(result.filesUploaded).toBe(1);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('uploads files to _atomic endpoint', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+    });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'test.gts', localPath: '/tmp/fake', content: 'export class Test {}', operation: 'add' },
+    ];
+
+    const result = await uploadBatch(files, 'https://realm.test/', 'jwt-token', {});
+
+    expect(result.success).toBe(true);
+    expect(result.filesUploaded).toBe(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://realm.test/_atomic',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Authorization': 'jwt-token',
+        }),
+      })
+    );
+  });
+
+  it('returns error on HTTP failure', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('Internal Server Error'),
+    });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'test.gts', localPath: '/tmp/fake', content: 'code', operation: 'add' },
+    ];
+
+    const result = await uploadBatch(files, 'https://realm.test/', 'jwt-token', {});
+
+    expect(result.success).toBe(false);
+    expect(result.filesUploaded).toBe(0);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0].error).toContain('500');
+  });
+
+  it('parses JSON error responses', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: () => Promise.resolve(JSON.stringify({
+        errors: [{ title: 'Validation Error', detail: 'Invalid card format' }]
+      })),
+    });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'test.json', localPath: '/tmp/fake', content: '{}', operation: 'add' },
+    ];
+
+    const result = await uploadBatch(files, 'https://realm.test/', 'jwt-token', {});
+
+    expect(result.success).toBe(false);
+    expect(result.errors[0].error).toContain('Invalid card format');
+  });
+
+  it('handles network errors', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+    const files: FileToUpload[] = [
+      { relativePath: 'test.gts', localPath: '/tmp/fake', content: 'code', operation: 'add' },
+    ];
+
+    const result = await uploadBatch(files, 'https://realm.test/', 'jwt-token', {});
+
+    expect(result.success).toBe(false);
+    expect(result.errors[0].error).toContain('Network error');
+  });
+});
+
+describe('uploadSingleFile', () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('returns success for dry run', async () => {
+    const mockFetch = vi.fn();
+    globalThis.fetch = mockFetch;
+
+    const file: FileToUpload = { relativePath: 'test.gts', localPath: '/tmp/fake', content: 'code', operation: 'add' };
+
+    const result = await uploadSingleFile(file, 'https://realm.test/', 'jwt-token', { dryRun: true });
+
+    expect(result.success).toBe(true);
+    expect(result.filesUploaded).toBe(1);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('uploads single file with POST', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+    });
+
+    const file: FileToUpload = { relativePath: 'test.gts', localPath: '/tmp/fake', content: 'export class Test {}', operation: 'add' };
+
+    const result = await uploadSingleFile(file, 'https://realm.test/', 'jwt-token', {});
+
+    expect(result.success).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://realm.test/test.gts',
+      expect.objectContaining({
+        method: 'POST',
+        body: 'export class Test {}',
+      })
+    );
+  });
+
+  it('returns error on failure', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+    });
+
+    const file: FileToUpload = { relativePath: 'test.gts', localPath: '/tmp/fake', content: 'code', operation: 'add' };
+
+    const result = await uploadSingleFile(file, 'https://realm.test/', 'jwt-token', {});
+
+    expect(result.success).toBe(false);
+    expect(result.errors[0].path).toBe('test.gts');
+  });
+});
+
+describe('uploadWithBatching fallback strategy', () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('uploads all files successfully in batches', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+    });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'a.gts', localPath: '/tmp/a', content: 'code1', operation: 'add' },
+      { relativePath: 'b.gts', localPath: '/tmp/b', content: 'code2', operation: 'add' },
+    ];
+
+    const result = await uploadWithBatching(files, 'https://realm.test/', 'jwt-token', { quiet: true });
+
+    expect(result.uploaded).toBe(2);
+    expect(result.failed).toBe(0);
+    expect(result.errors.length).toBe(0);
+  });
+
+  it('falls back to smaller batches on failure', async () => {
+    let callCount = 0;
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      // First batch fails, subsequent succeed
+      if (callCount === 1) {
+        return Promise.resolve({ ok: false, status: 500, text: () => Promise.resolve('Batch too large') });
+      }
+      return Promise.resolve({ ok: true, status: 200 });
+    });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'a.gts', localPath: '/tmp/a', content: 'code1', operation: 'add' },
+      { relativePath: 'b.gts', localPath: '/tmp/b', content: 'code2', operation: 'add' },
+      { relativePath: 'c.gts', localPath: '/tmp/c', content: 'code3', operation: 'add' },
+      { relativePath: 'd.gts', localPath: '/tmp/d', content: 'code4', operation: 'add' },
+    ];
+
+    const result = await uploadWithBatching(files, 'https://realm.test/', 'jwt-token', {
+      quiet: true,
+      batchSize: 4, // All in one batch initially
+    });
+
+    expect(result.uploaded).toBe(4);
+    expect(result.failed).toBe(0);
+    // Should have made more calls due to fallback
+    expect(callCount).toBeGreaterThan(1);
+  });
+
+  it('falls back to individual uploads when smaller batches fail', async () => {
+    let callCount = 0;
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      callCount++;
+      // First two _atomic calls fail (initial batch and first smaller batch)
+      // Then individual uploads succeed
+      if (url.includes('_atomic') && callCount <= 2) {
+        return Promise.resolve({ ok: false, status: 500, text: () => Promise.resolve('Batch failed') });
+      }
+      // After failures, individual or remaining _atomic uploads succeed
+      return Promise.resolve({ ok: true, status: 200 });
+    });
+
+    // Use 4 files to ensure we get to the individual fallback scenario
+    const files: FileToUpload[] = [
+      { relativePath: 'a.gts', localPath: '/tmp/a', content: 'code1', operation: 'add' },
+      { relativePath: 'b.gts', localPath: '/tmp/b', content: 'code2', operation: 'add' },
+      { relativePath: 'c.gts', localPath: '/tmp/c', content: 'code3', operation: 'add' },
+      { relativePath: 'd.gts', localPath: '/tmp/d', content: 'code4', operation: 'add' },
+    ];
+
+    const result = await uploadWithBatching(files, 'https://realm.test/', 'jwt-token', {
+      quiet: true,
+      batchSize: 4, // All in one batch initially
+    });
+
+    expect(result.uploaded).toBe(4);
+    expect(result.failed).toBe(0);
+    // Should have made multiple calls due to fallback
+    expect(callCount).toBeGreaterThan(2);
+  });
+
+  it('reports failures when individual uploads also fail', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('Server error'),
+    });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'bad.gts', localPath: '/tmp/bad', content: 'code', operation: 'add' },
+    ];
+
+    const result = await uploadWithBatching(files, 'https://realm.test/', 'jwt-token', { quiet: true });
+
+    expect(result.uploaded).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+
+  it('respects dry run mode', async () => {
+    const mockFetch = vi.fn();
+    globalThis.fetch = mockFetch;
+
+    const files: FileToUpload[] = [
+      { relativePath: 'a.gts', localPath: '/tmp/a', content: 'code1', operation: 'add' },
+      { relativePath: 'b.json', localPath: '/tmp/b', content: '{}', operation: 'add' },
+    ];
+
+    const result = await uploadWithBatching(files, 'https://realm.test/', 'jwt-token', {
+      quiet: true,
+      dryRun: true,
+    });
+
+    expect(result.uploaded).toBe(2);
+    expect(result.failed).toBe(0);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('sorts definitions before instances', async () => {
+    const uploadOrder: string[] = [];
+    globalThis.fetch = vi.fn().mockImplementation(async (url: string, opts: any) => {
+      if (url.includes('_atomic')) {
+        const body = JSON.parse(opts.body);
+        for (const op of body['atomic:operations']) {
+          uploadOrder.push(op.href.split('/').pop());
+        }
+      }
+      return { ok: true, status: 200 };
+    });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'Card/instance.json', localPath: '/tmp/a', content: '{}', operation: 'add' },
+      { relativePath: 'card.gts', localPath: '/tmp/b', content: 'code', operation: 'add' },
+    ];
+
+    await uploadWithBatching(files, 'https://realm.test/', 'jwt-token', {
+      quiet: true,
+      definitionsFirst: true,
+    });
+
+    expect(uploadOrder[0]).toBe('card.gts');
+    expect(uploadOrder[1]).toBe('instance.json');
+  });
+
+  it('applies delay between batches', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'a.gts', localPath: '/tmp/a', content: 'code1', operation: 'add' },
+      { relativePath: 'b.gts', localPath: '/tmp/b', content: 'code2', operation: 'add' },
+    ];
+
+    const startTime = Date.now();
+    await uploadWithBatching(files, 'https://realm.test/', 'jwt-token', {
+      quiet: true,
+      batchSize: 1, // Each file in its own batch
+      delayMs: 50,
+    });
+    const elapsed = Date.now() - startTime;
+
+    // Should have waited at least 50ms between the two batches
+    expect(elapsed).toBeGreaterThanOrEqual(40); // Allow some tolerance
+  });
+
+  it('calls progress callback', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+
+    const files: FileToUpload[] = [
+      { relativePath: 'a.gts', localPath: '/tmp/a', content: 'code1', operation: 'add' },
+    ];
+
+    const messages: string[] = [];
+    await uploadWithBatching(files, 'https://realm.test/', 'jwt-token', {}, (msg) => {
+      messages.push(msg);
+    });
+
+    // Should have some progress messages
+    expect(messages.length).toBeGreaterThan(0);
+    expect(messages.some(m => m.includes('Uploading'))).toBe(true);
   });
 });
