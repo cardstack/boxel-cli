@@ -215,11 +215,15 @@ program
   .option('-d, --debounce <seconds>', 'Wait for changes to settle before checkpoint (default: 3)', '3')
   .option('-i, --interval <seconds>', 'Minimum seconds between checkpoints (default: 10)', '10')
   .option('-q, --quiet', 'Only show output when checkpoints created')
-  .action(async (workspace: string | undefined, options: { debounce?: string; interval?: string; quiet?: boolean }) => {
+  .option('-p, --push', 'Push changes to server after checkpoint (batch upload)')
+  .option('-v, --verbose', 'Show detailed debug output')
+  .action(async (workspace: string | undefined, options: { debounce?: string; interval?: string; quiet?: boolean; push?: boolean; verbose?: boolean }) => {
     await trackCommand(workspace || '.', {
       debounce: options.debounce ? parseInt(options.debounce) : 3,
       interval: options.interval ? parseInt(options.interval) : 10,
       quiet: options.quiet,
+      push: options.push,
+      verbose: options.verbose,
     });
   });
 

@@ -135,8 +135,8 @@ boxel pull https://realms-staging.stack.cards/acme-corp/sandbox/ ./boxel-workspa
 ### `/track` - Track Local Edits
 Starts `boxel track` to auto-checkpoint local file changes:
 - Creates checkpoints as you save files in IDE
-- **IMPORTANT:** Track creates LOCAL checkpoints only
-- **After editing, run `boxel sync . --prefer-local` to push to server**
+- Use `--push` flag to automatically push changes to server (batch upload)
+- Without `--push`: Run `boxel sync . --prefer-local` to push to server
 
 ### `/watch` - Smart Watch
 Starts `boxel watch` with intelligent interval based on context:
@@ -214,12 +214,15 @@ These files may be broken on the server. Delete them from remote? [y/N]
 ### Track ⇆ (Local File Watching)
 ```bash
 boxel track .                     # Track local edits, auto-checkpoint as you save
+boxel track . --push              # Track AND push changes to server (batch upload)
 boxel track . -d 5 -i 30          # 5s debounce, 30s min between checkpoints
 boxel track . -q                  # Quiet mode
+boxel track . -v                  # Verbose mode (debug output)
 ```
 
 **Use track when:** Editing locally in IDE/VS Code. Creates checkpoints as you save files.
 **Symbol:** ⇆ (horizontal arrows = local changes)
+**With --push:** Real-time sync to server using batch upload via `/_atomic` endpoint.
 
 ### Watch ⇅ (Remote Server Watching)
 ```bash
@@ -353,6 +356,15 @@ boxel sync . --prefer-local       # Push your local changes to server
 ```
 
 **Remember:** Track does NOT sync to server automatically - it only creates local checkpoints. Always run `sync --prefer-local` when you want your changes live on the server.
+
+### Real-Time Sync with Track --push
+```bash
+boxel track . --push              # Track AND auto-push to server
+# ... edit files in IDE or with Claude ...
+# Changes are checkpointed AND pushed to server automatically
+```
+
+**With --push:** Uses batch upload via `/_atomic` endpoint for efficient multi-file uploads. Definitions (.gts) are uploaded before instances (.json) to ensure proper indexing.
 
 ### Active Development Session (Watching Server)
 ```bash
