@@ -181,11 +181,7 @@ export async function watchCommand(
       const fileResponse = await fetch(fileUrl, {
         headers: {
           'Authorization': realm.jwt,
-          'Accept': file.endsWith('.json')
-            ? 'application/vnd.card+source'
-            : file.endsWith('.gts')
-              ? 'application/vnd.card+source'
-              : '*/*',
+          'Accept': 'application/vnd.card+source',
         },
       });
 

@@ -321,17 +321,11 @@ export abstract class RealmSyncBase {
     const url = this.buildFileUrl(relativePath);
     const jwt = await this.realmAuthClient.getJWT();
 
-    // Always fetch card files as source to avoid writing compiled card JSON locally.
-    const acceptHeader = relativePath.endsWith('.json')
-      ? SupportedMimeType.CardSource
-      : relativePath.endsWith('.gts')
-        ? SupportedMimeType.CardSource
-        : '*/*';
-
+    // Always fetch as card+source to get clean source format, never compiled JSON API format
     const response = await fetch(url, {
       headers: {
         Authorization: jwt,
-        Accept: acceptHeader,
+        Accept: SupportedMimeType.CardSource,
       },
     });
 

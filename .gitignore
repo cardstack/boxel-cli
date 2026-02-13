@@ -34,3 +34,7 @@ npm-debug.log*
 
 # TypeScript cache
 *.tsbuildinfo
+
+
+# Worktrees
+.claude/worktrees

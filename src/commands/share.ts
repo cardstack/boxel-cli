@@ -1,4 +1,5 @@
 import { CheckpointManager } from '../lib/checkpoint-manager.js';
+import { makeRealmFilePortable } from '../lib/url-transform.js';
 import { execSync, spawnSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -172,8 +173,6 @@ export async function shareCommand(
     '.boxelignore', '.editorconfig', '.eslintrc.js', '.prettierrc.js',
     '.gitignore', '.npmrc', '.nvmrc',
     '.realm.json', // Preserve target realm config
-    'index.json', // Preserve target realm index (has realm-specific URLs)
-    'cards-grid.json', // Preserve target realm cards grid
   ]);
   const preserveDirs = new Set(['.git', '.github', '.vscode', 'node_modules']);
 
@@ -194,9 +193,14 @@ export async function shareCommand(
 
   // Files to skip copying (preserve target's version)
   // - .realm.json: realm config (name, icon, background)
-  // - index.json: contains realm-specific URLs and metadata
-  // - cards-grid.json: realm index card
-  const skipCopy = new Set(['.realm.json', 'index.json', 'cards-grid.json']);
+  const skipCopy = new Set(['.realm.json']);
+
+  // Files that need URL transformation (absolute -> relative)
+  const realmMetaFiles = new Set(['index.json', 'cards-grid.json']);
+
+  // Get workspace URL for URL transformation
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+  const workspaceUrl = manifest.workspaceUrl || '';
 
   // Copy new files
   for (const file of files) {
@@ -214,7 +218,14 @@ export async function shareCommand(
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    fs.copyFileSync(srcPath, destPath);
+    // Transform URLs in realm metadata files to be relative
+    if (realmMetaFiles.has(file) && workspaceUrl) {
+      const content = fs.readFileSync(srcPath, 'utf-8');
+      const transformed = makeRealmFilePortable(content, workspaceUrl);
+      fs.writeFileSync(destPath, transformed, 'utf-8');
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
     copied++;
   }
 

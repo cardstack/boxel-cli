@@ -374,11 +374,15 @@ boxel share . -t /path/to/boxel-home -b boxel/feature-name --no-pr
 # Then push via GitHub Desktop
 ```
 
+**URL Portability:** Share automatically converts absolute realm URLs in `index.json` and `cards-grid.json` to relative URLs, making the content portable across different realms.
+
 ### Gather Updates from GitHub
 ```bash
 boxel gather . -s /path/to/boxel-home
 boxel sync . --prefer-local       # Push gathered changes to Boxel server
 ```
+
+**URL Portability:** Gather includes `index.json` and `cards-grid.json`, transforming any absolute URLs to relative paths for portability.
 
 Or simply:
 ```
@@ -602,10 +606,33 @@ WebFetch https://app.boxel.ai/tribecaprep/employee-handbook/Document/abc123
 | `/<path>` | GET | Download file |
 | `/<path>` | POST | Upload file |
 | `/<path>` | DELETE | Delete file |
+| `/_atomic` | POST | Batch atomic operations |
 
 Headers:
 - `Authorization`: JWT from Matrix auth
 - `Accept`: `application/vnd.card+source` or `application/vnd.api+json`
+
+### Atomic Batch Operations
+
+The `/_atomic` endpoint supports batch file operations that succeed or fail atomically:
+
+```json
+{
+  "atomic:operations": [
+    { "op": "add", "href": "./path/to/new.json", "data": { "data": {...} } },
+    { "op": "update", "href": "./path/to/existing.gts", "data": { "data": { "type": "module", "attributes": { "content": "..." } } } },
+    { "op": "remove", "href": "./path/to/delete.json" }
+  ]
+}
+```
+
+| Operation | Behavior |
+|-----------|----------|
+| `add` | Create new file (fails 409 if exists) |
+| `update` | Update existing file (fails 404 if missing) |
+| `remove` | Delete file |
+
+**Content-Type:** `application/vnd.api+json`
 
 ---
 
