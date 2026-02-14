@@ -8,6 +8,7 @@ import { isProtectedFile } from '../lib/realm-sync-base.js';
 import { createHash } from 'crypto';
 import { getEditingFiles } from '../lib/edit-lock.js';
 import { getProfileManager, formatProfileBadge } from '../lib/profile-manager.js';
+import { registerProcess, unregisterCurrentProcess } from '../lib/process-registry.js';
 
 interface WatchOptions {
   interval?: number;
@@ -129,6 +130,8 @@ export async function watchCommand(
   console.log(`   Interval: ${intervalMs / 1000}s, Debounce: ${debounceMs / 1000}s`);
   console.log(`   Press Ctrl+C to stop\n`);
 
+  registerProcess('watch', realms.map((realm) => realm.localDir).join(','));
+
   const applyPendingChanges = async (realm: WatchedRealm, remoteMtimes: Record<string, number>) => {
     if (realm.pendingChanges.size === 0) return;
 
@@ -178,11 +181,7 @@ export async function watchCommand(
       const fileResponse = await fetch(fileUrl, {
         headers: {
           'Authorization': realm.jwt,
-          'Accept': file.endsWith('.json')
-            ? 'application/vnd.card+json'
-            : file.endsWith('.gts')
-              ? 'application/vnd.card+source'
-              : '*/*',
+          'Accept': 'application/vnd.card+source',
         },
       });
 
@@ -330,7 +329,13 @@ export async function watchCommand(
   const intervalId = setInterval(checkAllRealms, intervalMs);
 
   // Handle graceful shutdown
-  process.on('SIGINT', () => {
+  let shuttingDown = false;
+  const shutdown = () => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+
     clearInterval(intervalId);
     // Clear any pending debounce timers
     for (const realm of realms) {
@@ -339,8 +344,12 @@ export async function watchCommand(
       }
     }
     console.log('\n\n⇅  Watch stopped');
+    unregisterCurrentProcess();
     process.exit(0);
-  });
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 
   // Keep process alive
   await new Promise(() => {});

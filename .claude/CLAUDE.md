@@ -135,8 +135,8 @@ boxel pull https://realms-staging.stack.cards/acme-corp/sandbox/ ./boxel-workspa
 ### `/track` - Track Local Edits
 Starts `boxel track` to auto-checkpoint local file changes:
 - Creates checkpoints as you save files in IDE
-- **IMPORTANT:** Track creates LOCAL checkpoints only
-- **After editing, run `boxel sync . --prefer-local` to push to server**
+- Use `--push` flag to automatically push changes to server (batch upload)
+- Without `--push`: Run `boxel sync . --prefer-local` to push to server
 
 ### `/watch` - Smart Watch
 Starts `boxel watch` with intelligent interval based on context:
@@ -156,6 +156,13 @@ Context-aware bidirectional sync:
 - After local edits or track → `--prefer-local`
 - After server changes → `--prefer-remote`
 - After restore → `--prefer-local` (essential for syncing deletions)
+
+### `/repair` - Realm Metadata/Card Repair
+Use when workspaces show missing icon/background, wrong display name, or fail to open due to broken `index.json`/`cards-grid.json` links.
+- Read `.claude/commands/repair.md` for the step-by-step repair flow.
+- `boxel repair-realm <url>` repairs one realm
+- `boxel repair-realms` repairs all owned realms (excluding `personal` by default)
+- Also reconciles Matrix account data (`app.boxel.realms`) unless disabled
 
 ---
 
@@ -207,12 +214,15 @@ These files may be broken on the server. Delete them from remote? [y/N]
 ### Track ⇆ (Local File Watching)
 ```bash
 boxel track .                     # Track local edits, auto-checkpoint as you save
+boxel track . --push              # Track AND push changes to server (batch upload)
 boxel track . -d 5 -i 30          # 5s debounce, 30s min between checkpoints
 boxel track . -q                  # Quiet mode
+boxel track . -v                  # Verbose mode (debug output)
 ```
 
 **Use track when:** Editing locally in IDE/VS Code. Creates checkpoints as you save files.
 **Symbol:** ⇆ (horizontal arrows = local changes)
+**With --push:** Real-time sync to server using batch upload via `/_atomic` endpoint.
 
 ### Watch ⇅ (Remote Server Watching)
 ```bash
@@ -285,6 +295,9 @@ boxel profile migrate             # Migrate from old .env file
 ```bash
 boxel list                        # List workspaces
 boxel create endpoint "Name"      # Create workspace
+boxel consolidate-workspaces .    # Move legacy local dirs into domain/owner/realm
+boxel repair-realm <url>          # Repair one realm metadata/starter cards
+boxel repair-realms               # Batch repair all owned realms
 boxel pull <url> ./local          # One-way pull
 boxel push ./local <url>          # One-way push
 ```
@@ -344,6 +357,15 @@ boxel sync . --prefer-local       # Push your local changes to server
 
 **Remember:** Track does NOT sync to server automatically - it only creates local checkpoints. Always run `sync --prefer-local` when you want your changes live on the server.
 
+### Real-Time Sync with Track --push
+```bash
+boxel track . --push              # Track AND auto-push to server
+# ... edit files in IDE or with Claude ...
+# Changes are checkpointed AND pushed to server automatically
+```
+
+**With --push:** Uses batch upload via `/_atomic` endpoint for efficient multi-file uploads. Definitions (.gts) are uploaded before instances (.json) to ensure proper indexing.
+
 ### Active Development Session (Watching Server)
 ```bash
 /watch                            # Starts with 5s interval
@@ -364,11 +386,15 @@ boxel share . -t /path/to/boxel-home -b boxel/feature-name --no-pr
 # Then push via GitHub Desktop
 ```
 
+**URL Portability:** Share automatically converts absolute realm URLs in `index.json` and `cards-grid.json` to relative URLs, making the content portable across different realms.
+
 ### Gather Updates from GitHub
 ```bash
 boxel gather . -s /path/to/boxel-home
 boxel sync . --prefer-local       # Push gathered changes to Boxel server
 ```
+
+**URL Portability:** Gather includes `index.json` and `cards-grid.json`, transforming any absolute URLs to relative paths for portability.
 
 Or simply:
 ```
@@ -592,10 +618,33 @@ WebFetch https://app.boxel.ai/tribecaprep/employee-handbook/Document/abc123
 | `/<path>` | GET | Download file |
 | `/<path>` | POST | Upload file |
 | `/<path>` | DELETE | Delete file |
+| `/_atomic` | POST | Batch atomic operations |
 
 Headers:
 - `Authorization`: JWT from Matrix auth
 - `Accept`: `application/vnd.card+source` or `application/vnd.api+json`
+
+### Atomic Batch Operations
+
+The `/_atomic` endpoint supports batch file operations that succeed or fail atomically:
+
+```json
+{
+  "atomic:operations": [
+    { "op": "add", "href": "./path/to/new.json", "data": { "data": {...} } },
+    { "op": "update", "href": "./path/to/existing.gts", "data": { "data": { "type": "module", "attributes": { "content": "..." } } } },
+    { "op": "remove", "href": "./path/to/delete.json" }
+  ]
+}
+```
+
+| Operation | Behavior |
+|-----------|----------|
+| `add` | Create new file (fails 409 if exists) |
+| `update` | Update existing file (fails 404 if missing) |
+| `remove` | Delete file |
+
+**Content-Type:** `application/vnd.api+json`
 
 ---
 

@@ -141,6 +141,66 @@ export class MatrixClient {
     }
   }
 
+  async getAccountData<T>(type: string): Promise<T | null> {
+    if (!this.access) {
+      throw new Error('Must be logged in to get account data');
+    }
+
+    const response = await this.request(
+      `_matrix/client/v3/user/${encodeURIComponent(this.access.userId)}/account_data/${type}`,
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      const errorBody = await this.safeReadErrorBody(response);
+      throw new Error(
+        `Unable to get account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(errorBody)}`,
+      );
+    }
+
+    return (await response.json()) as T;
+  }
+
+  async setAccountData<T>(type: string, data: T): Promise<void> {
+    if (!this.access) {
+      throw new Error('Must be logged in to set account data');
+    }
+
+    const response = await this.request(
+      `_matrix/client/v3/user/${encodeURIComponent(this.access.userId)}/account_data/${type}`,
+      'PUT',
+      {
+        body: JSON.stringify(data),
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await this.safeReadErrorBody(response);
+      throw new Error(
+        `Unable to set account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(errorBody)}`,
+      );
+    }
+  }
+
+  private async safeReadErrorBody(response: Response): Promise<unknown> {
+    try {
+      const text = await response.text();
+      if (!text) {
+        return undefined;
+      }
+      try {
+        return JSON.parse(text) as unknown;
+      } catch {
+        return text;
+      }
+    } catch {
+      return '<unreadable response body>';
+    }
+  }
+
   async getOpenIdToken(): Promise<{
     access_token: string;
     expires_in: number;

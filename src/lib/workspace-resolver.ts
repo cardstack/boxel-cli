@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MatrixClient } from './matrix-client.js';
 import { RealmAuthClient } from './realm-auth-client.js';
+import { absoluteStructuredPathForWorkspaceUrl } from './workspace-paths.js';
 
 interface SyncManifest {
   workspaceUrl: string;
@@ -13,6 +14,10 @@ interface ResolvedWorkspace {
   localDir: string;
   workspaceUrl: string;
   manifest?: SyncManifest;
+}
+
+function localDirForWorkspaceUrl(workspaceUrl: string): string {
+  return absoluteStructuredPathForWorkspaceUrl(workspaceUrl, process.cwd());
 }
 
 /**
@@ -29,7 +34,7 @@ export async function resolveWorkspace(
   matrixClient?: MatrixClient
 ): Promise<ResolvedWorkspace> {
   // Check if it's a local path
-  if (ref === '.' || ref.startsWith('./') || ref.startsWith('/')) {
+  if (ref === '.' || ref.startsWith('./') || ref.startsWith('/') || path.isAbsolute(ref)) {
     const absoluteDir = path.resolve(ref);
     const manifestPath = path.join(absoluteDir, '.boxel-sync.json');
 
@@ -65,8 +70,8 @@ export async function resolveWorkspace(
       throw new Error(`Workspace not found: ${ref}\nAvailable: ${workspaces.map(w => '@' + new URL(w.url).pathname.replace(/^\/|\/$/g, '')).join(', ')}`);
     }
 
-    // Default local dir is the workspace name
-    const localDir = path.resolve(match.split('/').pop() || match);
+    // Default local dir follows domain/owner/realm structure.
+    const localDir = localDirForWorkspaceUrl(workspace.url);
 
     // Check if we have a local manifest
     const manifestPath = path.join(localDir, '.boxel-sync.json');
@@ -84,9 +89,7 @@ export async function resolveWorkspace(
 
   // Check if it's a full URL
   if (ref.startsWith('http://') || ref.startsWith('https://')) {
-    // For URLs, we need a local dir - derive from URL path
-    const urlPath = new URL(ref).pathname.replace(/^\/|\/$/g, '');
-    const localDir = path.resolve(urlPath.split('/').pop() || 'workspace');
+    const localDir = localDirForWorkspaceUrl(ref);
 
     // Check if we have a local manifest
     const manifestPath = path.join(localDir, '.boxel-sync.json');
@@ -186,8 +189,7 @@ export async function getAllWorkspacesStatus(matrixClient: MatrixClient): Promis
   return workspaces.map(w => {
     const urlPath = new URL(w.url).pathname.replace(/^\/|\/$/g, '');
     const shortName = '@' + urlPath;
-    const localDirName = urlPath.split('/').pop() || urlPath;
-    const localDir = path.resolve(localDirName);
+    const localDir = localDirForWorkspaceUrl(w.url);
     const manifestPath = path.join(localDir, '.boxel-sync.json');
     const hasSyncManifest = fs.existsSync(manifestPath);
 

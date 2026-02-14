@@ -10,6 +10,22 @@ Edit Boxel cards locally with your IDE or AI agent, sync changes instantly, and 
 
 ## Installation
 
+### Platform Support
+
+Boxel CLI supports:
+- macOS
+- Linux
+- Windows (PowerShell / Command Prompt)
+
+Requirements:
+- Node.js 18+
+- Git
+
+For `boxel share` PR creation, install GitHub CLI (`gh`):
+- Windows: `winget install GitHub.cli`
+- macOS: `brew install gh`
+- Linux: see [cli.github.com](https://cli.github.com/)
+
 ```bash
 git clone https://github.com/cardstack/boxel-cli.git
 cd boxel-cli
@@ -226,8 +242,10 @@ These files may be broken on the server. Delete them from remote? [y/N]
 ```bash
 # Track LOCAL file changes (checkpoint as you edit in IDE)
 boxel track .                     # Track local edits, auto-checkpoint
+boxel track . --push              # Track AND push to server (real-time sync)
 boxel track . -d 5 -i 30          # 5s debounce, 30s min between checkpoints
 boxel track . -q                  # Quiet mode
+boxel track . -v                  # Verbose mode (debug output)
 
 # Watch REMOTE server changes (pull external updates)
 boxel watch .                     # Watch single workspace (30s default)
@@ -248,6 +266,7 @@ boxel status . --pull             # Auto-pull changes
 | Command | Symbol | Direction | Purpose |
 |---------|--------|-----------|---------|
 | `track` | ⇆ | Local → Checkpoints | Backup your IDE edits as you type |
+| `track --push` | ⇆→ | Local → Server | Real-time sync with batch upload |
 | `watch` | ⇅ | Server → Local | Pull external changes from Boxel web UI |
 
 ### History & Checkpoints
@@ -282,8 +301,43 @@ boxel check ./file.json --sync    # Auto-sync if needed
 
 ```bash
 boxel list                        # List your workspaces
+boxel list --all-accessible       # Include all accessible realms (even hidden)
+boxel list --hidden               # Only realms not in your UI workspace list
 boxel create my-app "My App"      # Create new workspace
+boxel remove https://realms-staging.stack.cards/user/my-app/     # Soft remove from your account list
+boxel consolidate-workspaces .    # Move legacy local dirs to domain/owner/realm
+boxel repair-realm https://realms-staging.stack.cards/user/my-app/    # Repair one realm
+boxel repair-realms               # Repair all your realms + reconcile Matrix list
 ```
+
+### Realm Repair (No Custom Scripts)
+
+Use these when a realm has missing/corrupt `.realm.json`, broken `index.json`/`cards-grid.json`,
+wrong display name, or stale Matrix `app.boxel.realms` entries.
+
+```bash
+# Preview one realm repair
+boxel repair-realm https://realms-staging.stack.cards/ctse/odd-sheep/ --dry-run
+
+# Apply one realm repair
+boxel repair-realm https://realms-staging.stack.cards/ctse/odd-sheep/
+
+# Batch repair all realms owned by active profile user (excludes personal by default)
+boxel repair-realms
+
+# Batch repair a specific owner and include personal realm
+boxel repair-realms --owner ctse --include-personal
+```
+
+What `repair` does:
+- Repairs `.realm.json` defaults (`name`, `iconURL`, `backgroundURL`)
+- Restores `index.json` relationship to `./cards-grid`
+- Restores `cards-grid.json` default card when missing/corrupt
+- Before overwriting `index.json` or `cards-grid.json`, copies existing content to unique backup files in the realm (for example, `index.backup-<timestamp>.json`)
+- Touches `index.json` (`data.meta._touched`) to break cache
+- Reconciles Matrix account data (`app.boxel.realms`) with repaired realms
+
+Detailed runbook: `docs/realm-repair.md`
 
 ### Multi-Realm Configuration
 
@@ -331,6 +385,14 @@ boxel sync . --prefer-local       # Push changes to server
 ```
 
 **Remember:** `track` does NOT sync to server - it only creates local checkpoints for safety. Always run `sync --prefer-local` when you want your changes live.
+
+### Active Development (with real-time sync)
+```bash
+boxel track . --push              # Track AND push to server automatically
+# Edit files in IDE - changes sync to Boxel server in real-time
+```
+
+**With `--push`:** Uses batch upload via `/_atomic` endpoint for efficient multi-file uploads. Definitions (`.gts`) are sorted before instances (`.json`) to ensure proper indexing on the server.
 
 ### Active Development (with edit lock)
 ```bash

@@ -1,10 +1,17 @@
 import { MatrixClient } from '../lib/matrix-client.js';
 import { getProfileManager, formatProfileBadge } from '../lib/profile-manager.js';
+import { getRandomBackgroundURL, iconURLFor } from '../lib/workspace-appearance.js';
 
 interface CreateOptions {
   background?: string;
   icon?: string;
 }
+
+interface RealmsAccountData {
+  realms?: string[];
+}
+
+const APP_BOXEL_REALMS_EVENT_TYPE = 'app.boxel.realms';
 
 async function getRealmServerToken(
   matrixClient: MatrixClient,
@@ -35,6 +42,49 @@ async function getRealmServerToken(
   }
 
   return token;
+}
+
+function ensureTrailingSlash(url: string): string {
+  return url.endsWith('/') ? url : `${url}/`;
+}
+
+function getCleanUsername(username: string): string {
+  return username.replace(/^@/, '').replace(/:.*$/, '');
+}
+
+function isOwnedRealmURL(realmUrl: string, username: string): boolean {
+  try {
+    const ownedPrefix = `/${getCleanUsername(username)}/`;
+    return new URL(realmUrl).pathname.startsWith(ownedPrefix);
+  } catch {
+    return false;
+  }
+}
+
+async function appendRealmToAccountData(
+  matrixClient: MatrixClient,
+  realmUrl: string,
+): Promise<boolean> {
+  const normalizedRealmUrl = ensureTrailingSlash(realmUrl);
+  const accountData = (await matrixClient.getAccountData<RealmsAccountData>(
+    APP_BOXEL_REALMS_EVENT_TYPE,
+  )) ?? { realms: [] };
+
+  const existingRealms = Array.isArray(accountData.realms)
+    ? accountData.realms
+    : [];
+
+  const dedupedRealms = new Set(existingRealms.map(ensureTrailingSlash));
+  if (dedupedRealms.has(normalizedRealmUrl)) {
+    return false;
+  }
+
+  await matrixClient.setAccountData(APP_BOXEL_REALMS_EVENT_TYPE, {
+    ...accountData,
+    realms: [...existingRealms, normalizedRealmUrl],
+  });
+
+  return true;
 }
 
 export async function createCommand(
@@ -94,6 +144,8 @@ export async function createCommand(
     const serverToken = await getRealmServerToken(matrixClient, realmServerUrl);
 
     console.log(`Creating workspace "${name}" at endpoint "${endpoint}"...`);
+    const iconURL = options.icon ?? iconURLFor(name);
+    const backgroundURL = options.background ?? getRandomBackgroundURL();
 
     const createUrl = `${realmServerUrl}_create-realm`;
     const response = await fetch(createUrl, {
@@ -109,8 +161,8 @@ export async function createCommand(
           attributes: {
             endpoint,
             name,
-            ...(options.background && { backgroundURL: options.background }),
-            ...(options.icon && { iconURL: options.icon }),
+            ...(backgroundURL && { backgroundURL }),
+            ...(iconURL && { iconURL }),
           },
         },
       }),
@@ -135,6 +187,26 @@ export async function createCommand(
 
     const realmUrl = result.data?.id;
 
+    if (realmUrl) {
+      if (isOwnedRealmURL(realmUrl, username)) {
+        let updatedAccountData = false;
+        try {
+          updatedAccountData = await appendRealmToAccountData(matrixClient, realmUrl);
+        } catch {
+          // Retry once to reduce races/temporary failures while still keeping create success.
+          updatedAccountData = await appendRealmToAccountData(matrixClient, realmUrl);
+        }
+
+        if (updatedAccountData) {
+          console.log('Updated Matrix workspace list (app.boxel.realms).');
+        } else {
+          console.log('Workspace already present in Matrix workspace list.');
+        }
+      } else {
+        console.log('Skipping Matrix workspace list update (created realm is not under your user namespace).');
+      }
+    }
+
     console.log('');
     console.log('✅ Workspace created successfully!');
     console.log('');
@@ -145,6 +217,14 @@ export async function createCommand(
     console.log(`   boxel sync ./${endpoint} ${realmUrl}`);
 
   } catch (error) {
+    if (error instanceof Error && error.message.includes('account data')) {
+      console.log('');
+      console.log('⚠️  Workspace was created, but updating Matrix workspace list failed.');
+      console.log('   It may not appear in your workspace chooser until app.boxel.realms is updated.');
+      console.log(`   Created workspace URL: ${realmServerUrl}${getCleanUsername(username)}/${endpoint}/`);
+      return;
+    }
+
     console.error('Failed to create workspace:', error);
     process.exit(1);
   }

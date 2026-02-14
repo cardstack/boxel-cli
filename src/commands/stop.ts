@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import { listRegisteredProcesses } from '../lib/process-registry.js';
 
 interface StoppedProcess {
   pid: string;
@@ -9,14 +10,51 @@ interface StoppedProcess {
 export async function stopCommand(): Promise<void> {
   console.log('🛑 Stopping all Boxel watchers and trackers...\n');
 
-  // Check platform compatibility
-  if (process.platform === 'win32') {
-    console.log('  The stop command is only supported on Unix-like systems (macOS, Linux).');
-    console.log('  On Windows, use Task Manager to end boxel processes.');
+  const stopped: StoppedProcess[] = [];
+
+  // Preferred path: stop processes we started and registered.
+  const registered = listRegisteredProcesses();
+  for (const proc of registered) {
+    if (proc.pid === process.pid) {
+      continue;
+    }
+
+    try {
+      if (process.platform === 'win32') {
+        try {
+          process.kill(proc.pid);
+        } catch {
+          execSync(`taskkill /PID ${proc.pid} /F`, { stdio: 'ignore' });
+        }
+      } else {
+        process.kill(proc.pid, 'SIGINT');
+      }
+
+      stopped.push({
+        pid: String(proc.pid),
+        type: proc.type,
+        workspace: proc.workspace || '.',
+      });
+    } catch {
+      // Process may already be gone.
+    }
+  }
+
+  if (stopped.length > 0) {
+    for (const proc of stopped) {
+      const icon = proc.type === 'watch' ? '⇅ ' : '⇆ ';
+      const typeStr = proc.type.padEnd(5);
+      console.log(`  ${icon} Stopped: boxel ${typeStr} ${proc.workspace} (PID ${proc.pid})`);
+    }
+    console.log(`\n✓ Stopped ${stopped.length} process${stopped.length > 1 ? 'es' : ''}`);
     return;
   }
 
-  const stopped: StoppedProcess[] = [];
+  // Backward-compatibility fallback for pre-registry Unix processes.
+  if (process.platform === 'win32') {
+    console.log('  No registered watch/track processes found.');
+    return;
+  }
 
   try {
     // Find boxel watch and track processes

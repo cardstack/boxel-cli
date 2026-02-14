@@ -8,6 +8,37 @@ interface RealmInfo {
 
 export interface ListCommandOptions {
   json?: boolean;
+  allAccessible?: boolean;
+  hidden?: boolean;
+}
+
+interface RealmsAccountData {
+  realms?: string[];
+}
+
+const APP_BOXEL_REALMS_EVENT_TYPE = 'app.boxel.realms';
+
+function ensureTrailingSlash(url: string): string {
+  return url.endsWith('/') ? url : `${url}/`;
+}
+
+function normalizeRealmList(realms: string[] | undefined): string[] {
+  if (!Array.isArray(realms)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const entry of realms) {
+    if (typeof entry !== 'string' || !entry.trim()) {
+      continue;
+    }
+    const url = ensureTrailingSlash(entry.trim());
+    if (!seen.has(url)) {
+      seen.add(url);
+      normalized.push(url);
+    }
+  }
+  return normalized;
 }
 
 async function getRealmServerToken(
@@ -129,13 +160,32 @@ export async function listCommand(options: ListCommandOptions): Promise<void> {
     const realmServerToken = await getRealmServerToken(matrixClient, realmServerUrl);
     console.log('Realm server authentication successful');
 
-    console.log('Fetching accessible workspaces...\n');
+    console.log('Fetching workspaces...\n');
     const realms = await fetchAccessibleRealms(realmServerUrl, realmServerToken);
+    const accessibleRealmUrls = normalizeRealmList(Object.keys(realms));
 
-    const realmUrls = Object.keys(realms);
+    const accountData =
+      (await matrixClient.getAccountData<RealmsAccountData>(APP_BOXEL_REALMS_EVENT_TYPE)) ?? {};
+    const uiRealmUrls = normalizeRealmList(accountData.realms);
+
+    let realmUrls: string[];
+    if (options.hidden) {
+      const uiSet = new Set(uiRealmUrls);
+      realmUrls = accessibleRealmUrls.filter((url) => !uiSet.has(url));
+    } else if (options.allAccessible) {
+      realmUrls = accessibleRealmUrls;
+    } else {
+      realmUrls = uiRealmUrls;
+    }
 
     if (realmUrls.length === 0) {
-      console.log('No workspaces found.');
+      if (options.hidden) {
+        console.log('No hidden workspaces found.');
+      } else if (options.allAccessible) {
+        console.log('No accessible workspaces found.');
+      } else {
+        console.log('No workspaces found in your UI list (app.boxel.realms).');
+      }
       return;
     }
 
@@ -144,11 +194,21 @@ export async function listCommand(options: ListCommandOptions): Promise<void> {
       return;
     }
 
-    console.log(`Found ${realmUrls.length} workspace(s):\n`);
+    const modeLabel = options.hidden
+      ? 'hidden workspace(s)'
+      : options.allAccessible
+        ? 'accessible workspace(s)'
+        : 'UI workspace(s)';
+    console.log(`Found ${realmUrls.length} ${modeLabel}:\n`);
 
     // Fetch info for each realm
     for (const realmUrl of realmUrls) {
       const token = realms[realmUrl];
+      if (!token) {
+        console.log(`  ${realmUrl}`);
+        console.log('');
+        continue;
+      }
       const info = await fetchRealmInfo(realmUrl, token);
 
       if (info.name) {

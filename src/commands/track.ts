@@ -1,11 +1,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
+import { validateMatrixEnvVars } from '../lib/realm-sync-base.js';
+import { MatrixClient } from '../lib/matrix-client.js';
+import { RealmAuthClient } from '../lib/realm-auth-client.js';
+import { uploadWithBatching, FileToUpload } from '../lib/batch-upload.js';
 
 interface TrackOptions {
   debounce?: number;
   interval?: number;  // Minimum seconds between checkpoints
   quiet?: boolean;
+  push?: boolean;     // Push changes to server
+  verbose?: boolean;  // Show detailed debug output
 }
 
 export async function trackCommand(
@@ -29,6 +35,57 @@ export async function trackCommand(
     process.exit(1);
   }
 
+  // Load sync manifest for workspace URL (needed for push)
+  let workspaceUrl = '';
+  let realmAuthClient: RealmAuthClient | null = null;
+  let matrixClient: MatrixClient | null = null;
+  // Note: We don't cache JWT - realmAuthClient.getJWT() handles caching and refresh internally
+
+  if (options.push) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(syncManifestPath, 'utf8'));
+      workspaceUrl = manifest.workspaceUrl;
+      if (!workspaceUrl) {
+        throw new Error('No workspaceUrl in manifest');
+      }
+
+      // Initialize Matrix auth
+      const { matrixUrl, username, password } = await validateMatrixEnvVars(workspaceUrl);
+      matrixClient = new MatrixClient({
+        matrixURL: new URL(matrixUrl),
+        username,
+        password,
+      });
+
+      if (options.verbose) {
+        console.log(`[VERBOSE] Logging into Matrix as ${username}...`);
+      }
+      await matrixClient.login();
+
+      realmAuthClient = new RealmAuthClient(
+        new URL(workspaceUrl),
+        matrixClient,
+      );
+
+      // Verify auth works at startup
+      if (options.verbose) {
+        console.log(`[VERBOSE] Verifying JWT acquisition...`);
+      }
+      const initialJwt = await realmAuthClient.getJWT();
+      if (options.verbose) {
+        console.log(`[VERBOSE] JWT verified (${initialJwt.length} chars)`);
+      }
+
+      if (options.verbose) {
+        console.log(`[VERBOSE] Push enabled to: ${workspaceUrl}`);
+      }
+    } catch (error) {
+      console.error('Failed to initialize push:', error);
+      console.error('Run without --push or fix authentication.');
+      process.exit(1);
+    }
+  }
+
   // Initialize checkpoint manager
   const checkpointManager = new CheckpointManager(workspaceDir);
   if (!checkpointManager.isInitialized()) {
@@ -40,7 +97,6 @@ export async function trackCommand(
   let debounceTimer: NodeJS.Timeout | null = null;
   let pendingChanges = new Map<string, 'added' | 'modified' | 'deleted'>();
   let lastCheckpointTime = Date.now();
-  let isCheckingChanges = false; // Mutex to prevent concurrent checkForChanges calls
 
   // Initialize file states
   const initializeFileStates = (dir: string, prefix = '') => {
@@ -50,7 +106,7 @@ export async function trackCommand(
     for (const entry of entries) {
       // Skip internal files
       if (entry.name.startsWith('.boxel-') || entry.name === '.git') continue;
-      if (entry.name.startsWith('.')) continue;
+      if (entry.name.startsWith('.') && entry.name !== '.realm.json') continue;
 
       const fullPath = path.join(dir, entry.name);
       const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -73,11 +129,17 @@ export async function trackCommand(
   console.log(`⇆  Tracking local changes: ${workspaceName}`);
   console.log(`   Directory: ${workspaceDir}`);
   console.log(`   Debounce: ${debounceMs / 1000}s, Min interval: ${minIntervalMs / 1000}s`);
+  if (options.push) {
+    console.log(`   Push: enabled → ${workspaceUrl}`);
+  }
+  if (options.verbose) {
+    console.log(`   Verbose: enabled`);
+  }
   console.log(`   Press Ctrl+C to stop\n`);
 
   let intervalTimer: NodeJS.Timeout | null = null;
 
-  const applyPendingChanges = (force = false) => {
+  const applyPendingChanges = async (force = false) => {
     if (pendingChanges.size === 0) return;
 
     // Check minimum interval between checkpoints (unless forced on exit)
@@ -91,7 +153,7 @@ export async function trackCommand(
         }
         intervalTimer = setTimeout(() => {
           intervalTimer = null;
-          applyPendingChanges();
+          applyPendingChanges().catch(err => console.error('Error applying changes:', err));
         }, waitMs);
       }
       return;
@@ -127,23 +189,66 @@ export async function trackCommand(
       console.log(`  ⇆  Checkpoint: ${checkpoint.shortHash} ${checkpoint.isMajor ? '[MAJOR]' : '[minor]'} ${checkpoint.message}`);
     }
 
+    // Push changes to server if enabled
+    if (options.push && realmAuthClient && workspaceUrl) {
+      const filesToPush: FileToUpload[] = [];
+
+      for (const [file, status] of Array.from(pendingChanges.entries())) {
+        if (status === 'deleted') {
+          // TODO: Handle deletions via API
+          if (options.verbose) {
+            console.log(`  [VERBOSE] Skip delete (not implemented): ${file}`);
+          }
+          continue;
+        }
+
+        const localPath = path.join(workspaceDir, file);
+        if (fs.existsSync(localPath)) {
+          filesToPush.push({
+            relativePath: file,
+            localPath,
+            operation: status === 'added' ? 'add' : 'update',
+          });
+        }
+      }
+
+      if (filesToPush.length > 0) {
+        try {
+          if (options.verbose) {
+            console.log(`  [VERBOSE] Pushing ${filesToPush.length} files to server...`);
+          }
+
+          // Get fresh JWT (handles refresh if expired)
+          const jwt = await realmAuthClient.getJWT();
+
+          const result = await uploadWithBatching(
+            filesToPush,
+            workspaceUrl,
+            jwt,
+            {
+              batchSize: 10,
+              definitionsFirst: true,
+              quiet: !options.verbose,
+              verbose: options.verbose,
+            }
+          );
+
+          if (result.failed > 0) {
+            console.log(`  ⚠️  Push: ${result.uploaded} succeeded, ${result.failed} failed`);
+          } else {
+            console.log(`  ✓  Pushed ${result.uploaded} files (${result.timeMs}ms)`);
+          }
+        } catch (error) {
+          console.error(`  ✗  Push failed:`, error);
+        }
+      }
+    }
+
     pendingChanges.clear();
     lastCheckpointTime = Date.now();
   };
 
   const checkForChanges = () => {
-    // Prevent concurrent execution (fs.watch and setInterval can trigger simultaneously)
-    if (isCheckingChanges) return;
-    isCheckingChanges = true;
-
-    try {
-      checkForChangesImpl();
-    } finally {
-      isCheckingChanges = false;
-    }
-  };
-
-  const checkForChangesImpl = () => {
     const currentFiles = new Map<string, { mtime: number; size: number }>();
 
     const scanDir = (dir: string, prefix = '') => {
@@ -153,7 +258,7 @@ export async function trackCommand(
       for (const entry of entries) {
         // Skip internal files
         if (entry.name.startsWith('.boxel-') || entry.name === '.git') continue;
-        if (entry.name.startsWith('.')) continue;
+        if (entry.name.startsWith('.') && entry.name !== '.realm.json') continue;
 
         const fullPath = path.join(dir, entry.name);
         const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -220,30 +325,32 @@ export async function trackCommand(
       }
 
       debounceTimer = setTimeout(() => {
-        applyPendingChanges();
+        applyPendingChanges().catch(err => console.error('Error applying changes:', err));
         debounceTimer = null;
       }, debounceMs);
     }
   };
 
   // Use fs.watch for efficient file watching
-  // Note: recursive option is only supported on macOS and Windows.
-  // On Linux, we rely on the polling fallback (setInterval) below.
-  const watchers: fs.FSWatcher[] = [];
+  // Note: recursive: true is not reliably supported on Linux
   const isLinux = process.platform === 'linux';
+  const watchers: fs.FSWatcher[] = [];
 
   if (isLinux && !options.quiet) {
-    console.log(`   Note: On Linux, file watching uses polling only (fs.watch recursive not supported)\n`);
+    console.log('Note: Recursive file watching is limited on Linux. Using polling as primary method.');
   }
 
   const watchDir = (dir: string) => {
     try {
-      const watcher = fs.watch(dir, { recursive: !isLinux }, (eventType, filename) => {
+      // On Linux, don't use recursive option as it may throw ERR_FEATURE_UNAVAILABLE_ON_PLATFORM
+      const watchOptions: fs.WatchOptions = isLinux ? {} : { recursive: true };
+
+      const watcher = fs.watch(dir, watchOptions, (eventType, filename) => {
         if (!filename) return;
 
         // Skip internal files
         if (filename.startsWith('.boxel-') || filename.includes('.git')) return;
-        if (filename.startsWith('.')) return;
+        if (filename.startsWith('.') && filename !== '.realm.json') return;
 
         // Debounced check for changes
         checkForChanges();
@@ -257,7 +364,10 @@ export async function trackCommand(
 
       watchers.push(watcher);
     } catch (error) {
-      console.error(`Failed to watch directory:`, error);
+      // On platforms where fs.watch fails, we rely on polling
+      if (!options.quiet) {
+        console.log('File system watching unavailable, using polling only.');
+      }
     }
   };
 
@@ -267,7 +377,7 @@ export async function trackCommand(
   const pollInterval = setInterval(checkForChanges, 2000);
 
   // Handle graceful shutdown
-  process.on('SIGINT', () => {
+  process.on('SIGINT', async () => {
     clearInterval(pollInterval);
     if (debounceTimer) {
       clearTimeout(debounceTimer);
@@ -280,7 +390,7 @@ export async function trackCommand(
       if (!options.quiet) {
         console.log('\n\nApplying pending changes before exit...');
       }
-      applyPendingChanges(true);
+      await applyPendingChanges(true);
     }
     for (const watcher of watchers) {
       watcher.close();
@@ -296,6 +406,5 @@ export async function trackCommand(
 }
 
 function timestamp(): string {
-  const now = new Date();
-  return now.toISOString().substring(11, 19); // HH:MM:SS in UTC
+  return new Date().toLocaleTimeString();
 }
