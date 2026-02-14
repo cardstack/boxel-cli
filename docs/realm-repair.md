@@ -16,16 +16,16 @@ When `index.json` or `cards-grid.json` must be replaced, existing file content i
 
 ```bash
 # Repair one realm
-boxel repair-realm <workspace-url>
+boxel doctor repair-realm <workspace-url>
 
 # Batch repair all realms for the active profile owner
-boxel repair-realms
+boxel doctor repair-realms
 ```
 
 ## Single-Realm Options
 
 ```bash
-boxel repair-realm <url> \
+boxel doctor repair-realm <url> \
   --match-endpoint \
   --reconcile-matrix \
   --dry-run
@@ -40,7 +40,7 @@ boxel repair-realm <url> \
 ## Batch Options
 
 ```bash
-boxel repair-realms \
+boxel doctor repair-realms \
   --owner ctse \
   --include-personal \
   --dry-run

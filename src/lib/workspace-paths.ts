@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 interface SyncManifest {
@@ -12,6 +13,12 @@ export interface LegacyWorkspaceEntry {
   workspaceUrl: string;
 }
 
+const DEFAULT_WORKSPACES_DIR = 'boxel-workspaces';
+
+export function defaultWorkspacesRoot(): string {
+  return path.join(os.homedir(), DEFAULT_WORKSPACES_DIR);
+}
+
 let didWarnInProcess = false;
 
 function isSkippableDir(dirName: string): boolean {
@@ -23,12 +30,9 @@ function isSkippableDir(dirName: string): boolean {
 }
 
 function canonicalDomainFromHost(hostname: string): string {
-  if (hostname.endsWith('stack.cards')) {
-    return 'stack.cards';
-  }
-  if (hostname.endsWith('boxel.ai')) {
-    return 'boxel.ai';
-  }
+  // Use the full realm server hostname — no normalization
+  // This avoids ambiguity between staging and production realms
+  // e.g. realms-staging.stack.cards stays as realms-staging.stack.cards
   return hostname;
 }
 
@@ -145,7 +149,7 @@ export function warnIfLegacyWorkspacePaths(rootDir: string): void {
     console.warn(`   ...and ${legacyEntries.length - 5} more`);
   }
   console.warn('\nRun to preview:');
-  console.warn('   boxel consolidate-workspaces . --dry-run');
+  console.warn('   boxel doctor consolidate-workspaces --dry-run');
   console.warn('Then apply:');
-  console.warn('   boxel consolidate-workspaces .\n');
+  console.warn('   boxel doctor consolidate-workspaces\n');
 }

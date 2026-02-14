@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { findLegacyWorkspaceDirs } from '../lib/workspace-paths.js';
+import { findLegacyWorkspaceDirs, defaultWorkspacesRoot } from '../lib/workspace-paths.js';
 
 interface ConsolidateOptions {
   dryRun?: boolean;
@@ -29,7 +29,7 @@ export async function consolidateWorkspacesCommand(
   rootDirInput: string | undefined,
   options: ConsolidateOptions,
 ): Promise<void> {
-  const rootDir = path.resolve(rootDirInput || '.');
+  const rootDir = path.resolve(rootDirInput || defaultWorkspacesRoot());
   const legacyEntries = findLegacyWorkspaceDirs(rootDir);
 
   if (legacyEntries.length === 0) {

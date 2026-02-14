@@ -80,13 +80,13 @@ BOXEL_PASSWORD="password" npx boxel profile add -u @username:boxel.ai -n "My Pro
 
 ### Step 3: Verify & List Workspaces
 ```bash
-npx boxel list
+npx boxel workspace-list
 ```
 
-### Step 4: First Sync
-Help them sync their first workspace:
+### Step 4: First Pull
+Help them pull their first workspace (defaults to `~/boxel-workspaces/`):
 ```bash
-npx boxel sync @username/workspace ./workspace-name
+npx boxel pull https://app.boxel.ai/username/workspace/
 ```
 
 ### Switching Between Profiles
@@ -99,33 +99,32 @@ npx boxel profile switch username   # Switch by partial match
 
 ## Local Workspace Organization
 
-When syncing multiple workspaces locally, organize them by **domain/username/realm** to mirror the Matrix ID structure (`@username:domain`):
+The CLI stores synced workspaces under `~/boxel-workspaces/` by default, organized by **realm-server-hostname/username/realm**:
 
 ```
-boxel-workspaces/
-├── boxel.ai/                      # Production domain
-│   └── acme-corp/                 # Username
-│       ├── personal/              # Realm
+~/boxel-workspaces/                          # Default root (all platforms)
+├── app.boxel.ai/                            # Production realm server
+│   └── acme-corp/
+│       ├── personal/
 │       ├── project-atlas/
 │       └── inventory-tracker/
-└── stack.cards/                   # Staging domain
+└── realms-staging.stack.cards/              # Staging realm server
     └── acme-corp/
         └── sandbox/
 ```
 
+**Default root:** `~/boxel-workspaces/` on macOS, Linux, and Windows. Override by passing an explicit local path to `pull` or `sync`.
+
 **Benefits:**
-- Clear separation between production and staging environments
-- Matches the `@username:domain` profile ID format
-- Easy to identify which profile/environment a workspace belongs to
-- Supports multiple users on the same machine
+- Full realm server hostname as folder name eliminates staging/production ambiguity
+- Each environment is clearly identifiable by its path
+- No collision between realms on different servers
 
-**First-time sync to this structure:**
+**First-time sync:**
 ```bash
-# Production workspace
-boxel pull https://app.boxel.ai/acme-corp/project-atlas/ ./boxel-workspaces/boxel.ai/acme-corp/project-atlas
-
-# Staging workspace
-boxel pull https://realms-staging.stack.cards/acme-corp/sandbox/ ./boxel-workspaces/stack.cards/acme-corp/sandbox
+# The CLI automatically places workspaces under ~/boxel-workspaces/
+boxel pull https://app.boxel.ai/acme-corp/project-atlas/
+boxel pull https://realms-staging.stack.cards/acme-corp/sandbox/
 ```
 
 ---
@@ -160,8 +159,8 @@ Context-aware bidirectional sync:
 ### `/repair` - Realm Metadata/Card Repair
 Use when workspaces show missing icon/background, wrong display name, or fail to open due to broken `index.json`/`cards-grid.json` links.
 - Read `.claude/commands/repair.md` for the step-by-step repair flow.
-- `boxel repair-realm <url>` repairs one realm
-- `boxel repair-realms` repairs all owned realms (excluding `personal` by default)
+- `boxel doctor repair-realm <url>` repairs one realm
+- `boxel doctor repair-realms` repairs all owned realms (excluding `personal` by default)
 - Also reconciles Matrix account data (`app.boxel.realms`) unless disabled
 
 ---
@@ -252,12 +251,12 @@ boxel stop                        # Stop all running watch (⇅) and track (⇆)
 ### Realms (Multi-Realm Configuration)
 ```bash
 boxel realms                      # List configured realms
-boxel realms --init               # Create .boxel-workspaces.json
-boxel realms --add ./path         # Add a realm
-boxel realms --add ./code --purpose "Card definitions" --patterns "*.gts" --default
-boxel realms --add ./data --purpose "Data instances" --card-types "BlogPost,Product"
-boxel realms --llm                # Output LLM guidance for file placement
-boxel realms --remove ./path      # Remove a realm
+boxel realms init               # Create .boxel-workspaces.json
+boxel realms add ./path         # Add a realm
+boxel realms add ./code --purpose "Card definitions" --patterns "*.gts" --default
+boxel realms add ./data --purpose "Data instances" --card-types "BlogPost,Product"
+boxel realms llm                # Output LLM guidance for file placement
+boxel realms remove ./path      # Remove a realm
 ```
 
 **File placement guidance:** The `--llm` output tells Claude which realm to use for different file types and card types.
@@ -299,11 +298,11 @@ boxel profile migrate             # Migrate from old .env file
 
 ### Other
 ```bash
-boxel list                        # List workspaces
+boxel workspace-list                        # List workspaces
 boxel create endpoint "Name"      # Create workspace
-boxel consolidate-workspaces .    # Move legacy local dirs into domain/owner/realm
-boxel repair-realm <url>          # Repair one realm metadata/starter cards
-boxel repair-realms               # Batch repair all owned realms
+boxel doctor consolidate-workspaces      # Fix workspace dirs (defaults to ~/boxel-workspaces/)
+boxel doctor repair-realm <url>          # Repair one realm metadata/starter cards
+boxel doctor repair-realms               # Batch repair all owned realms
 boxel pull <url> ./local          # One-way pull
 boxel push ./local <url>          # One-way push
 ```
@@ -419,14 +418,14 @@ When working with multiple realms (e.g., code + data separation):
 
 ```bash
 # Configure realms once
-boxel realms --add ./code-realm --purpose "Card definitions" --patterns "*.gts" --default
-boxel realms --add ./data-realm --purpose "Content instances" --card-types "BlogPost,Product"
+boxel realms add ./code-realm --purpose "Card definitions" --patterns "*.gts" --default
+boxel realms add ./data-realm --purpose "Content instances" --card-types "BlogPost,Product"
 
 # Watch all configured realms
 boxel watch
 
 # Check where to put a new file
-boxel realms --llm
+boxel realms llm
 ```
 
 **File placement heuristics:**
@@ -675,7 +674,7 @@ The `/_atomic` endpoint supports batch file operations that succeed or fail atom
 - For staging: ensure profile uses `@username:stack.cards`
 
 ### "No workspace found"
-- Run `boxel list` to see workspaces
+- Run `boxel workspace-list` to see workspaces
 - Use full URL for first sync
 - Ensure correct profile is active for the environment
 

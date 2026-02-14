@@ -52,13 +52,13 @@ BOXEL_PASSWORD="password" npx boxel profile add -u @username:stack.cards -n "Sta
 
 ### 3. Verify
 ```bash
-npx boxel list
+npx boxel workspace-list
 ```
 
 ### 4. First Sync
-Help them sync a workspace:
+Help them pull a workspace (defaults to `~/boxel-workspaces/`):
 ```bash
-npx boxel sync @username/workspace ./workspace-name
+npx boxel pull https://app.boxel.ai/username/workspace/
 ```
 
 ## Profile Management
@@ -81,8 +81,8 @@ npx boxel profile migrate
 ## Success Message
 ```
 Setup complete! You can now:
-- `npx boxel list` - See your workspaces
-- `npx boxel sync @username/workspace` - Sync a workspace
+- `npx boxel workspace-list` - See your workspaces
+- `npx boxel pull <url>` - Pull a workspace to ~/boxel-workspaces/
 - `npx boxel watch .` - Monitor for changes
 - `npx boxel history .` - View/restore checkpoints
 

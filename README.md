@@ -8,6 +8,22 @@ Edit Boxel cards locally with your IDE or AI agent, sync changes instantly, and 
 
 ---
 
+## Terminology: Realm vs Workspace
+
+Boxel CLI uses two related but distinct terms:
+
+- **Realm** — Server-side concept. A realm is the data store on the server that holds files, cards, and indexes. Use "realm" when talking about server operations, repair, and configuration. Commands: `boxel realms`, `boxel doctor repair-realm`.
+- **Workspace** — User-interface concept. A workspace is how users interact with realms through the Boxel web UI. Matrix manages the user's workspace list. Commands: `boxel workspace-list`, `boxel create`.
+
+| Context | Term | Example |
+|---------|------|---------|
+| Server data store | Realm | `.realm.json`, `boxel realms add` |
+| UI workspace picker | Workspace | `boxel workspace-list`, `boxel create` |
+| Local config for multi-realm dev | Realm | `.boxel-workspaces.json` |
+| Matrix account data | Workspace | `app.boxel.realms` workspace list |
+
+---
+
 ## Installation
 
 ### Platform Support
@@ -36,8 +52,8 @@ Now you can use `npx boxel` (or `boxel` after `npm link`):
 
 ```bash
 npx boxel profile add              # Set up your account
-npx boxel list                     # List your workspaces
-npx boxel sync @user/workspace .   # Sync a workspace locally
+npx boxel workspace-list           # List your workspaces
+npx boxel pull <workspace-url>     # Pull a workspace to ~/boxel-workspaces/
 ```
 
 ### With Claude Code (Recommended)
@@ -57,7 +73,7 @@ To use `boxel` directly without `npx`:
 ```bash
 npm link
 boxel profile add
-boxel list
+boxel workspace-list
 boxel sync .
 ```
 
@@ -306,54 +322,51 @@ boxel check ./file.json --sync    # Auto-sync if needed
 ### Workspace Management
 
 ```bash
-boxel list                        # List your workspaces
-boxel list --all-accessible       # Include all accessible realms (even hidden)
-boxel list --hidden               # Only realms not in your UI workspace list
+boxel workspace-list              # List your workspaces (alias: boxel list)
+boxel workspace-list --all-accessible  # Include all accessible realms (even hidden)
+boxel workspace-list --hidden     # Only realms not in your UI workspace list
 boxel create my-app "My App"      # Create new workspace
 boxel remove https://realms-staging.stack.cards/user/my-app/     # Soft remove from your account list
-boxel consolidate-workspaces .    # Move legacy local dirs to domain/owner/realm
-boxel repair-realm https://realms-staging.stack.cards/user/my-app/    # Repair one realm
-boxel repair-realms               # Repair all your realms + reconcile Matrix list
 ```
 
-### Realm Repair (No Custom Scripts)
+### Doctor (Maintenance & Diagnostics)
 
-Use these when a realm has missing/corrupt `.realm.json`, broken `index.json`/`cards-grid.json`,
-wrong display name, or stale Matrix `app.boxel.realms` entries.
+Rarely-needed maintenance commands live under `boxel doctor`:
+
+```bash
+boxel doctor repair-realm <url>         # Repair one realm's .realm.json + index.json
+boxel doctor repair-realms              # Batch repair all your realms
+boxel doctor consolidate-workspaces      # Fix workspace dirs (defaults to ~/boxel-workspaces/)
+boxel doctor force-reindex .            # Force server to re-index files (workaround)
+```
+
+**Realm repair** fixes `.realm.json` metadata (name, icon, background) and optionally
+repairs `index.json`/`cards-grid.json`. Use `--fix-index` to enable index repair.
+Batch mode (`repair-realms`) defaults to config-only repair (no index overwrite).
 
 ```bash
 # Preview one realm repair
-boxel repair-realm https://realms-staging.stack.cards/ctse/odd-sheep/ --dry-run
+boxel doctor repair-realm https://realms-staging.stack.cards/ctse/odd-sheep/ --dry-run
 
-# Apply one realm repair
-boxel repair-realm https://realms-staging.stack.cards/ctse/odd-sheep/
+# Repair with index fix
+boxel doctor repair-realm https://realms-staging.stack.cards/ctse/odd-sheep/ --fix-index
 
-# Batch repair all realms owned by active profile user (excludes personal by default)
-boxel repair-realms
+# Batch repair all owned realms (config only, no index overwrite)
+boxel doctor repair-realms
 
-# Batch repair a specific owner and include personal realm
-boxel repair-realms --owner ctse --include-personal
+# Batch repair with explicit options
+boxel doctor repair-realms --owner ctse --include-personal --match-endpoint
 ```
-
-What `repair` does:
-- Repairs `.realm.json` defaults (`name`, `iconURL`, `backgroundURL`)
-- Restores `index.json` relationship to `./cards-grid`
-- Restores `cards-grid.json` default card when missing/corrupt
-- Before overwriting `index.json` or `cards-grid.json`, copies existing content to unique backup files in the realm (for example, `index.backup-<timestamp>.json`)
-- Touches `index.json` (`data.meta._touched`) to break cache
-- Reconciles Matrix account data (`app.boxel.realms`) with repaired realms
-
-Detailed runbook: `docs/realm-repair.md`
 
 ### Multi-Realm Configuration
 
 ```bash
-boxel realms --init               # Create .boxel-workspaces.json
-boxel realms                      # Show configuration
-boxel realms --add ./code --purpose "Definitions" --patterns "*.gts" --default
-boxel realms --add ./data --purpose "Content" --card-types "Post,Product"
-boxel realms --llm                # Output file placement guidance
-boxel realms --remove ./code      # Remove realm
+boxel realms init                 # Create .boxel-workspaces.json
+boxel realms list                 # Show configuration (default)
+boxel realms add ./code --purpose "Definitions" --patterns "*.gts" --default
+boxel realms add ./data --purpose "Content" --card-types "Post,Product"
+boxel realms llm                  # Output file placement guidance
+boxel realms remove ./code        # Remove realm
 ```
 
 ### GitHub Workflows
@@ -495,33 +508,43 @@ export class MyCard extends CardDef {
 
 ## Local Workspace Organization
 
-When syncing multiple workspaces locally, organize them by **domain/username/realm** to mirror the Matrix ID structure (`@username:domain`):
+The CLI stores synced workspaces under `~/boxel-workspaces/` by default, organized by **realm-server-hostname/username/realm**:
 
 ```
-boxel-workspaces/
-├── boxel.ai/                      # Production domain
-│   └── acme-corp/                 # Username
-│       ├── personal/              # Realm
+~/boxel-workspaces/                          # Default root (all platforms)
+├── app.boxel.ai/                            # Production realm server
+│   └── acme-corp/
+│       ├── personal/
 │       ├── project-atlas/
 │       └── inventory-tracker/
-└── stack.cards/                   # Staging domain
+├── realms-staging.stack.cards/              # Staging realm server
+│   └── acme-corp/
+│       └── sandbox/
+└── realms.stack.cards/                      # Production realm server (stack.cards)
     └── acme-corp/
-        └── sandbox/
+        └── production-app/
 ```
+
+**Default root:** `~/boxel-workspaces/` on macOS, Linux, and Windows. Override by passing an explicit local path to `pull` or `sync`.
 
 **Benefits:**
-- Clear separation between production and staging environments
-- Matches the `@username:domain` profile ID format
-- Easy to identify which profile/environment a workspace belongs to
+- Full realm server URL as folder name eliminates staging/production ambiguity
+- Each environment is clearly identifiable by its path
+- No collision between realms on different servers
 
-**First-time sync to this structure:**
+**First-time sync:**
 ```bash
-# Production workspace
-boxel pull https://app.boxel.ai/username/realm/ ./boxel-workspaces/boxel.ai/username/realm
+# The CLI automatically places workspaces under ~/boxel-workspaces/
+boxel pull https://app.boxel.ai/username/realm/
+boxel pull https://realms-staging.stack.cards/username/realm/
 
-# Staging workspace
-boxel pull https://realms-staging.stack.cards/username/realm/ ./boxel-workspaces/stack.cards/username/realm
+# Or specify an explicit local path to override the default:
+boxel pull https://app.boxel.ai/username/realm/ ./my-custom-dir
 ```
+
+### Profile-Agnostic Local Files
+
+The `.boxel-workspaces.json` config and local directory structure are profile-agnostic by design. Switching profiles changes which remote server you sync with, but all workspaces accumulate on your local machine without conflict. The directory paths encode which realm server they belong to, so there's no need for per-profile configuration.
 
 ---
 
@@ -641,7 +664,7 @@ cat ./Type/card-id.json
 | Issue | Solution |
 |-------|----------|
 | "Authentication failed" | Check `boxel profile`, verify web login works |
-| "No workspace found" | Run `boxel list`, use full URL for first sync |
+| "No workspace found" | Run `boxel workspace-list`, use full URL for first sync |
 | Files reverting after restore | Stop watch first, use `--prefer-local` after |
 | Watch not detecting changes | Check interval, verify workspace URL |
 | Definition changes not reflected | `boxel touch . Instance/file.json` |
