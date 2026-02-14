@@ -63,6 +63,23 @@ export abstract class RealmSyncBase {
   private normalizeRealmUrl(url: string): string {
     try {
       const urlObj = new URL(url);
+
+      // Check if the path component looks like a file (has a period after the domain)
+      const pathPart = urlObj.pathname;
+      const lastSegment = pathPart.split('/').filter(Boolean).pop() || '';
+
+      if (lastSegment.includes('.')) {
+        console.warn(
+          `⚠️  Warning: "${url}" looks like a file URL, not a realm URL.` +
+          `\n   Realm URLs should point to a directory (e.g., ${urlObj.origin}${pathPart.replace(/\/[^/]*\.[^/]*$/, '/')})`
+        );
+      } else if (!url.endsWith('/')) {
+        console.warn(
+          `⚠️  Warning: Realm URL should end with a trailing slash.` +
+          `\n   Did you mean "${url}/"?`
+        );
+      }
+
       // Ensure it ends with a single slash for consistency
       return urlObj.href.replace(/\/+$/, '') + '/';
     } catch {
