@@ -1,4 +1,5 @@
 import * as readline from 'readline';
+import { Writable } from 'stream';
 import {
   ProfileManager,
   getProfileManager,
@@ -33,9 +34,13 @@ function prompt(question: string): Promise<string> {
 }
 
 function promptPassword(question: string): Promise<string> {
+  const mutableOutput = new Writable({
+    write: (_chunk, _encoding, callback) => callback(),
+  });
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: mutableOutput,
+    terminal: true,
   });
 
   return new Promise((resolve) => {
@@ -69,7 +74,7 @@ function promptPassword(question: string): Promise<string> {
         }
       } else {
         password += c;
-        process.stdout.write('•');
+        process.stdout.write('*');
       }
     };
 
