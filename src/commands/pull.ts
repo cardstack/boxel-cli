@@ -2,6 +2,18 @@ import { RealmSyncBase, validateMatrixEnvVars, type SyncOptions } from '../lib/r
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
+
+interface SyncManifest {
+  workspaceUrl: string;
+  lastSyncTime: number;
+  files: Record<string, { localHash: string; remoteMtime: number }>;
+}
+
+function computeFileHash(filePath: string): string {
+  const content = fs.readFileSync(filePath);
+  return crypto.createHash('md5').update(content).digest('hex');
+}
 
 interface PullOptions extends SyncOptions {
   deleteLocal?: boolean;
@@ -102,6 +114,29 @@ class RealmPuller extends RealmSyncBase {
           }
         }
       }
+    }
+
+    // Create sync manifest so subsequent `boxel sync` knows files are in sync
+    if (!this.options.dryRun && downloadedFiles.length > 0) {
+      const remoteMtimes = await this.getRemoteMtimes();
+      const manifest: SyncManifest = {
+        workspaceUrl: this.options.workspaceUrl,
+        lastSyncTime: Date.now(),
+        files: {},
+      };
+
+      for (const relativePath of downloadedFiles) {
+        const localPath = path.join(this.options.localDir, relativePath);
+        if (fs.existsSync(localPath)) {
+          manifest.files[relativePath] = {
+            localHash: computeFileHash(localPath),
+            remoteMtime: remoteMtimes.get(relativePath) || Math.floor(Date.now() / 1000),
+          };
+        }
+      }
+
+      const manifestPath = path.join(this.options.localDir, '.boxel-sync.json');
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
     }
 
     // Create checkpoint for pulled files
