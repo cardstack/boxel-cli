@@ -11,7 +11,7 @@ interface SyncManifest {
   files: Record<string, { localHash: string; remoteMtime: number }>;
 }
 
-function computeFileHash(content: string): string {
+function computeFileHash(content: string | Buffer): string {
   return crypto.createHash('md5').update(content).digest('hex');
 }
 
@@ -72,7 +72,7 @@ export async function checkCommand(
   const relativePath = path.relative(workspaceRoot, absolutePath).replace(/\\/g, '/');
 
   // Read local file
-  const localContent = fs.readFileSync(absolutePath, 'utf-8');
+  const localContent = fs.readFileSync(absolutePath);
   const localHash = computeFileHash(localContent);
   const localMtime = fs.statSync(absolutePath).mtimeMs;
 

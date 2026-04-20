@@ -19,7 +19,7 @@ interface FileStatus {
   remoteMtime?: number;
 }
 
-function computeFileHash(content: string): string {
+function computeFileHash(content: string | Buffer): string {
   return crypto.createHash('md5').update(content).digest('hex');
 }
 
@@ -201,7 +201,7 @@ async function analyzeChanges(
     let localChanged = false;
 
     if (existsLocally) {
-      const content = fs.readFileSync(localPath, 'utf-8');
+      const content = fs.readFileSync(localPath);
       const hash = computeFileHash(content);
       localChanged = hash !== manifestEntry.localHash;
     }
@@ -305,7 +305,7 @@ async function statusSingle(
     let localChanged = false;
 
     if (existsLocally) {
-      const content = fs.readFileSync(localPath, 'utf-8');
+      const content = fs.readFileSync(localPath);
       const hash = computeFileHash(content);
       localChanged = hash !== manifestEntry.localHash;
     }
