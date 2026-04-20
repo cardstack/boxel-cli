@@ -112,10 +112,33 @@ boxel gather . -s /path/to/repo
 
 ## Batch Upload API
 The CLI supports batch uploads via the `/_atomic` endpoint:
-- Used by `track --push` for efficient multi-file uploads
+- Used by `track --push` and `push --batch` for efficient multi-file uploads
 - Sorts definitions (.gts) before instances (.json) for proper indexing
 - Fallback strategy: full batch → smaller batches → individual uploads
 - See `src/lib/batch-upload.ts` for implementation
+
+### Content-type routing (since 1.0.1)
+Before sending bytes anywhere, the uploader decides which path a file takes based on extension (see `src/lib/content-type.ts`):
+
+| File class | Examples | Path | Content-Type | Accept |
+|---|---|---|---|---|
+| Compilable source | `.gts`, `.ts`, `.tsx`, `.js`, `.jsx`, `.cjs`, `.mjs`, `.css`, `.scss`, `.less`, `.sass`, `.html` | `/_atomic` (type: `source`) | per-extension MIME | `application/vnd.card+source` |
+| Card JSON | `.json` | `/_atomic` (type: `card`, fallback `source` on parse failure) | `application/json` | `application/vnd.card+source` |
+| Plain text, non-source | `.md`, `.txt`, `.csv`, `.yaml`, `.xml` | per-file POST | per-extension MIME | `*/*` |
+| Binary | `.png`, `.jpg`, `.woff`, `.pdf`, `.zip`, etc. | per-file POST | per-extension MIME or `application/octet-stream` | `*/*` |
+
+Rationale: `/_atomic` rejects anything its module compiler can't parse. Plain text and binary files need their raw bytes stored directly, which only the per-file POST endpoint does correctly.
+
+### Manifest shape (since 1.0.1)
+All three sync commands agree on one `.boxel-sync.json` shape:
+```ts
+interface SyncManifest {
+  workspaceUrl: string;
+  lastSyncTime?: number;
+  files: Record<string, { localHash: string; remoteMtime: number }>;
+}
+```
+`push.ts` migrates the pre-1.0.1 format (`files[path] = hashString`) on read. New writes always use the object form. Mirror this shape if adding a new command that touches the manifest.
 
 ## Notes for Agents Editing This Repo
 - Prefer minimal, targeted command changes in `src/commands/*.ts`.
