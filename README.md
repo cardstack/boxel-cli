@@ -671,12 +671,19 @@ When you open this repo in Claude Code, it will guide you through setup and prov
 
 ---
 
+## Release notes
+
+See [CHANGELOG.md](CHANGELOG.md) for per-version changes.
+
+---
+
 ## Contributing
 
 PRs welcome! Please ensure:
 - Code passes linting (`npm run lint`)
 - New features have documentation
 - Breaking changes are noted in PR description
+- Add a bullet to `CHANGELOG.md` under the in-progress version (or start a new `## Unreleased` section if one doesn't exist)
 
 ---
 
