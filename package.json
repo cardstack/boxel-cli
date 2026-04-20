@@ -1,6 +1,6 @@
 {
   "name": "boxel-cli",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "CLI for bidirectional sync between local directories and Boxel workspaces",
   "type": "module",
   "main": "dist/index.js",
