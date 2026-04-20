@@ -13,7 +13,7 @@ Low-risk ports from `@cardstack/boxel-cli` (the official package in the Boxel mo
 
 ### Changed
 
-- Concurrent remote fetches now capped at **10** via `p-limit`. Recursive `getRemoteFileList()` parallelizes subdirectory walks under the cap. Deep workspaces walk noticeably faster on `pull` / `sync` / `status`; no regression risk (sequential is a strict subset of concurrency-capped-10).
+- Concurrent remote fetches now capped at **10** via `p-limit`. `getRemoteFileList()` parallelizes subdirectory walks with the limiter wrapping only the single HTTP GET (not the recursion), so slots free as fetches return and deep trees can't deadlock on waiting-parent-waiting-child cycles. Deep workspaces should walk faster on `pull` / `sync` / `status`, with concurrency capped at 10.
 
 ### For contributors
 

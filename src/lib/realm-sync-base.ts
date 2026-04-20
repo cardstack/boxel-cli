@@ -118,12 +118,20 @@ export abstract class RealmSyncBase {
       const url = this.buildDirectoryUrl(dir);
       const jwt = await this.realmAuthClient.getJWT();
 
-      const response = await fetch(url, {
-        headers: {
-          Accept: 'application/vnd.api+json',
-          Authorization: jwt,
-        },
-      });
+      // Limit only the single HTTP GET, not the recursion around it.
+      // If we wrapped the whole recursive call in remoteLimit, parent tasks
+      // would hold slots while awaiting their children, which can deadlock
+      // once all 10 slots are occupied by ancestors waiting on descendants.
+      // Holding the slot only during the fetch means a slot frees as soon
+      // as the network round-trip returns, regardless of recursion depth.
+      const response = await this.remoteLimit(() =>
+        fetch(url, {
+          headers: {
+            Accept: 'application/vnd.api+json',
+            Authorization: jwt,
+          },
+        }),
+      );
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -148,10 +156,11 @@ export abstract class RealmSyncBase {
       if (data.data && data.data.relationships) {
         const entries = Object.entries(data.data.relationships);
 
-        // Fan out subdirectory fetches in parallel, capped at REMOTE_CONCURRENCY.
-        // Files at this level are handled inline (no network).
+        // Recurse into subdirectories in parallel. Each child will acquire
+        // its own slot only when it issues its GET, so children don't wait
+        // on sibling parents and the tree walks freely.
         const subResults = await Promise.all(
-          entries.map(([name, info]) => {
+          entries.map(async ([name, info]) => {
             const entry = info as { meta: { kind: string } };
             const isFile = entry.meta.kind === 'file';
             const entryPath = dir ? path.posix.join(dir, name) : name;
@@ -163,10 +172,8 @@ export abstract class RealmSyncBase {
               return [] as Array<[string, boolean]>;
             }
 
-            return this.remoteLimit(async () => {
-              const subdirFiles = await this.getRemoteFileList(entryPath);
-              return Array.from(subdirFiles.entries());
-            });
+            const subdirFiles = await this.getRemoteFileList(entryPath);
+            return Array.from(subdirFiles.entries());
           }),
         );
 
