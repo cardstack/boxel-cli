@@ -218,7 +218,10 @@ describe('buildAtomicRequest', () => {
     expect(request['atomic:operations'][0].op).toBe('update');
   });
 
-  it('falls back to file type for invalid JSON', () => {
+  it('falls back to source type for invalid JSON', () => {
+    // The /_atomic endpoint only accepts 'card' and 'source' resource types.
+    // When a .json file can't be parsed as a card, we fall back to 'source' so
+    // the request still succeeds (rather than 'file', which isn't a valid type).
     const files = [
       createFile('bad.json', 'not valid json {{'),
     ];
@@ -226,7 +229,7 @@ describe('buildAtomicRequest', () => {
     const request = buildAtomicRequest(files, 'https://realm.test/');
 
     const op = request['atomic:operations'][0];
-    expect(op.data.type).toBe('file');
+    expect(op.data.type).toBe('source');
     expect(op.data.attributes?.content).toBe('not valid json {{');
   });
 

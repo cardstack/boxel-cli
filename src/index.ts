@@ -1,7 +1,17 @@
 #!/usr/bin/env node
 
 import 'dotenv/config';
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
+
+/** Parse a positive integer from a CLI flag; throw a friendly error otherwise. */
+function parsePositiveInt(raw: string, _prev: unknown): number {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) {
+    throw new InvalidArgumentError(`expected a positive integer, got "${raw}"`);
+  }
+  return n;
+}
+
 import { pushCommand } from './commands/push.js';
 import { pullCommand } from './commands/pull.js';
 import { listCommand } from './commands/list.js';
@@ -26,13 +36,19 @@ import { repairRealmCommand, repairRealmsCommand } from './commands/repair.js';
 import { consolidateWorkspacesCommand } from './commands/consolidate.js';
 import { loadConfig } from './lib/realm-config.js';
 import { warnIfLegacyWorkspacePaths } from './lib/workspace-paths.js';
+import { createRequire } from 'module';
+
+// Read version from package.json so `boxel --version` stays in sync with the
+// published package. Using require() avoids ESM JSON-import assertion syntax
+// that varies across Node versions.
+const pkg = createRequire(import.meta.url)('../package.json') as { version: string };
 
 const program = new Command();
 
 program
   .name('boxel')
   .description('CLI tools for syncing files between local directories and Boxel workspaces')
-  .version('1.0.0');
+  .version(pkg.version);
 
 program.hook('preAction', (_thisCommand, actionCommand) => {
   const commandName = actionCommand.name();
@@ -66,7 +82,7 @@ program
   .option('--dry-run', 'Show what would be done without making changes')
   .option('--force', 'Upload all files, even if unchanged')
   .option('--batch', 'Use atomic batch upload for faster bulk operations (10 files per batch)')
-  .option('--batch-size <n>', 'Files per batch when using --batch (default: 10)', parseInt)
+  .option('--batch-size <n>', 'Files per batch when using --batch (default: 10)', parsePositiveInt)
   .action(async (localDir: string, workspaceUrl: string, options: { delete?: boolean; dryRun?: boolean; force?: boolean; batch?: boolean; batchSize?: number }) => {
     await pushCommand(localDir, workspaceUrl, options);
   });
