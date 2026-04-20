@@ -1,5 +1,6 @@
 import { RealmSyncBase, validateMatrixEnvVars, isProtectedFile, type SyncOptions } from '../lib/realm-sync-base.js';
 import { CheckpointManager, type CheckpointChange } from '../lib/checkpoint-manager.js';
+import { uploadWithBatching, type FileToUpload } from '../lib/batch-upload.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -34,6 +35,8 @@ function saveManifest(localDir: string, manifest: SyncManifest): void {
 interface PushOptions extends SyncOptions {
   deleteRemote?: boolean;
   force?: boolean;
+  batch?: boolean;
+  batchSize?: number;
 }
 
 class RealmPusher extends RealmSyncBase {
@@ -120,6 +123,64 @@ class RealmPusher extends RealmSyncBase {
 
     if (filesToUpload.size === 0) {
       console.log('No files to upload - everything is up to date');
+    } else if (this.pushOptions.batch) {
+      // Batch upload mode: .gts files individually (in dependency order), .json via /_atomic
+      const batchSize = this.pushOptions.batchSize ?? 10;
+
+      // Determine operation type: 'add' for new files, 'update' for existing
+      const remoteFiles = await this.getRemoteFileList();
+      const allFiles: FileToUpload[] = Array.from(filesToUpload.entries()).map(([relativePath, localPath]) => ({
+        relativePath,
+        localPath,
+        operation: remoteFiles.has(relativePath) ? 'update' as const : 'add' as const,
+      }));
+
+      // Separate definitions from instances
+      const { sortDefinitionsFirst } = await import('../lib/batch-upload.js');
+      const sorted = sortDefinitionsFirst(allFiles);
+      const definitions = sorted.filter(f => f.relativePath.endsWith('.gts'));
+      const instances = sorted.filter(f => !f.relativePath.endsWith('.gts'));
+
+      // Upload .gts files individually in dependency order
+      if (definitions.length > 0) {
+        console.log(`Uploading ${definitions.length} definition(s) in dependency order...`);
+        for (const file of definitions) {
+          try {
+            await this.uploadFile(file.relativePath, file.localPath);
+            newManifest.files[file.relativePath] = computeFileHash(file.localPath);
+          } catch (error) {
+            this.hasError = true;
+            console.error(`Error uploading ${file.relativePath}:`, error);
+          }
+        }
+      }
+
+      // Batch upload .json files via /_atomic
+      if (instances.length > 0) {
+        console.log(`Batch uploading ${instances.length} instance(s) (${batchSize} per batch)...`);
+        const jwt = await this.realmAuthClient.getJWT();
+        const result = await uploadWithBatching(instances, this.options.workspaceUrl, jwt, {
+          batchSize,
+          definitionsFirst: false, // already separated
+          dryRun: this.options.dryRun,
+        });
+
+        // Update manifest for successfully uploaded files
+        if (result.uploaded > 0) {
+          for (const file of instances) {
+            if (fs.existsSync(file.localPath)) {
+              newManifest.files[file.relativePath] = computeFileHash(file.localPath);
+            }
+          }
+        }
+
+        if (result.failed > 0) {
+          this.hasError = true;
+          for (const err of result.errors) {
+            console.error(`Error uploading ${err.path}: ${err.error}`);
+          }
+        }
+      }
     } else {
       console.log(`Uploading ${filesToUpload.size} file(s)...`);
 
@@ -194,6 +255,8 @@ export interface PushCommandOptions {
   delete?: boolean;
   dryRun?: boolean;
   force?: boolean;
+  batch?: boolean;
+  batchSize?: number;
 }
 
 export async function pushCommand(
@@ -217,6 +280,8 @@ export async function pushCommand(
         deleteRemote: options.delete,
         dryRun: options.dryRun,
         force: options.force,
+        batch: options.batch,
+        batchSize: options.batchSize,
       },
       matrixUrl,
       username,

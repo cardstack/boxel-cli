@@ -65,7 +65,9 @@ program
   .option('--delete', 'Delete remote files that do not exist locally')
   .option('--dry-run', 'Show what would be done without making changes')
   .option('--force', 'Upload all files, even if unchanged')
-  .action(async (localDir: string, workspaceUrl: string, options: { delete?: boolean; dryRun?: boolean; force?: boolean }) => {
+  .option('--batch', 'Use atomic batch upload for faster bulk operations (10 files per batch)')
+  .option('--batch-size <n>', 'Files per batch when using --batch (default: 10)', parseInt)
+  .action(async (localDir: string, workspaceUrl: string, options: { delete?: boolean; dryRun?: boolean; force?: boolean; batch?: boolean; batchSize?: number }) => {
     await pushCommand(localDir, workspaceUrl, options);
   });
 
