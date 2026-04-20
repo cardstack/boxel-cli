@@ -1,11 +1,19 @@
 import { MatrixClient, passwordFromSeed } from './matrix-client.js';
 import { RealmAuthClient } from './realm-auth-client.js';
 import { readFileForUpload } from './content-type.js';
+import pLimit from 'p-limit';
 import * as fs from 'fs';
 import * as path from 'path';
 import ignoreModule from 'ignore';
 const ignore = ignoreModule.default || ignoreModule;
 type Ignore = ReturnType<typeof ignore>;
+
+/**
+ * Cap on concurrent remote fetches during recursive directory walks.
+ * Ported from @cardstack/boxel-cli. Protects the realm server from
+ * N-way parallel explosion on deeply nested workspaces.
+ */
+const REMOTE_CONCURRENCY = 10;
 
 // Files that must never be pushed, deleted, or overwritten on the server via CLI.
 // These are server-managed config files - corrupting them can break a realm.
@@ -32,6 +40,8 @@ export abstract class RealmSyncBase {
   protected matrixClient: MatrixClient;
   protected realmAuthClient: RealmAuthClient;
   protected normalizedRealmUrl: string;
+  /** Limits concurrent remote fetches to avoid hammering the server. */
+  protected remoteLimit = pLimit(REMOTE_CONCURRENCY);
   private ignoreCache = new Map<string, Ignore>();
 
   constructor(
@@ -136,20 +146,33 @@ export abstract class RealmSyncBase {
       };
 
       if (data.data && data.data.relationships) {
-        for (const [name, info] of Object.entries(data.data.relationships)) {
-          const entry = info as { meta: { kind: string } };
-          const isFile = entry.meta.kind === 'file';
-          const entryPath = dir ? path.posix.join(dir, name) : name;
+        const entries = Object.entries(data.data.relationships);
 
-          if (isFile) {
-            if (!this.shouldIgnoreRemoteFile(entryPath)) {
-              files.set(entryPath, true);
+        // Fan out subdirectory fetches in parallel, capped at REMOTE_CONCURRENCY.
+        // Files at this level are handled inline (no network).
+        const subResults = await Promise.all(
+          entries.map(([name, info]) => {
+            const entry = info as { meta: { kind: string } };
+            const isFile = entry.meta.kind === 'file';
+            const entryPath = dir ? path.posix.join(dir, name) : name;
+
+            if (isFile) {
+              if (!this.shouldIgnoreRemoteFile(entryPath)) {
+                return [[entryPath, true as boolean]] as Array<[string, boolean]>;
+              }
+              return [] as Array<[string, boolean]>;
             }
-          } else {
-            const subdirFiles = await this.getRemoteFileList(entryPath);
-            for (const [subPath, isFileEntry] of subdirFiles) {
-              files.set(subPath, isFileEntry);
-            }
+
+            return this.remoteLimit(async () => {
+              const subdirFiles = await this.getRemoteFileList(entryPath);
+              return Array.from(subdirFiles.entries());
+            });
+          }),
+        );
+
+        for (const pairs of subResults) {
+          for (const [p, isFileEntry] of pairs) {
+            files.set(p, isFileEntry);
           }
         }
       }

@@ -43,7 +43,8 @@
     "@aws-crypto/sha256-js": "^5.2.0",
     "commander": "^12.1.0",
     "dotenv": "^17.2.3",
-    "ignore": "^5.3.2"
+    "ignore": "^5.3.2",
+    "p-limit": "^7.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
