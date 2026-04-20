@@ -5,15 +5,16 @@ import * as os from 'os';
 const CONFIG_DIR = path.join(os.homedir(), '.boxel-cli');
 const PROFILES_FILE = path.join(CONFIG_DIR, 'profiles.json');
 
-// ANSI color codes
-const FG_GREEN = '\x1b[32m';
-const FG_YELLOW = '\x1b[33m';
-const FG_CYAN = '\x1b[36m';
-const FG_MAGENTA = '\x1b[35m';
-const FG_RED = '\x1b[31m';
-const DIM = '\x1b[2m';
-const BOLD = '\x1b[1m';
-const RESET = '\x1b[0m';
+import {
+  FG_GREEN,
+  FG_YELLOW,
+  FG_CYAN,
+  FG_MAGENTA,
+  FG_RED,
+  DIM,
+  BOLD,
+  RESET,
+} from './colors.js';
 
 export interface Profile {
   displayName: string;
@@ -28,16 +29,18 @@ export interface ProfilesConfig {
   activeProfile: string | null;
 }
 
-export type Environment = 'staging' | 'production' | 'unknown';
+export type Environment = 'staging' | 'production' | 'local' | 'unknown';
 
 /**
  * Extract environment from Matrix user ID
  * @example @ctse:stack.cards -> staging
  * @example @ctse:boxel.ai -> production
+ * @example @ctse:localhost  -> local
  */
 export function getEnvironmentFromMatrixId(matrixId: string): Environment {
   if (matrixId.endsWith(':stack.cards')) return 'staging';
   if (matrixId.endsWith(':boxel.ai')) return 'production';
+  if (matrixId.endsWith(':localhost')) return 'local';
   return 'unknown';
 }
 
@@ -67,6 +70,7 @@ export function getEnvironmentLabel(env: Environment): string {
   switch (env) {
     case 'staging': return '🧪 stack.cards';
     case 'production': return '⚡ boxel.ai';
+    case 'local': return '🏠 localhost';
     default: return '❓ unknown';
   }
 }
@@ -78,6 +82,7 @@ export function getEnvironmentShortLabel(env: Environment): string {
   switch (env) {
     case 'staging': return 'stack.cards';
     case 'production': return 'boxel.ai';
+    case 'local': return 'localhost';
     default: return 'unknown';
   }
 }
@@ -382,4 +387,12 @@ export function getProfileManager(): ProfileManager {
     _instance = new ProfileManager();
   }
   return _instance;
+}
+
+/**
+ * Reset the singleton. Useful for tests that want a clean ProfileManager
+ * between runs (or after mutating on-disk ~/.boxel-cli/profiles.json).
+ */
+export function resetProfileManager(): void {
+  _instance = null;
 }

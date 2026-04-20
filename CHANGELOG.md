@@ -2,6 +2,25 @@
 
 All notable changes to `boxel-cli`. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## 1.0.2 — 2026-04-20
+
+Low-risk ports from `@cardstack/boxel-cli` (the official package in the Boxel monorepo). No user-visible command changes; architectural alignment + mild speedups.
+
+### New
+
+- `'local'` environment — a Matrix ID ending in `:localhost` now resolves to `Environment = 'local'` instead of `'unknown'`. Env labels get matching `'localhost'` / `'🏠 localhost'` cases. Enables running the CLI against a locally-spawned realm-server.
+- `resetProfileManager()` — nulls the module-level singleton so tests can start fresh between runs. Purely additive.
+
+### Changed
+
+- Concurrent remote fetches now capped at **10** via `p-limit`. `getRemoteFileList()` parallelizes subdirectory walks with the limiter wrapping only the single HTTP GET (not the recursion), so slots free as fetches return and deep trees can't deadlock on waiting-parent-waiting-child cycles. Deep workspaces should walk faster on `pull` / `sync` / `status`, with concurrency capped at 10.
+
+### For contributors
+
+- New `src/lib/colors.ts` — single source of truth for all ANSI escape codes. 7 files (5 commands + 2 libs) migrated from inline const blocks to imports. Adding a new command now uses the shared palette instead of copying 8 ANSI lines.
+
+---
+
 ## 1.0.1 — 2026-04-20
 
 ### New

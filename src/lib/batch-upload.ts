@@ -46,13 +46,14 @@ function isAtomicIncompatible(file: FileToUpload): boolean {
   return !ATOMIC_SOURCE_EXTENSIONS.has(ext);
 }
 
-// ANSI color codes
-const FG_GREEN = '\x1b[32m';
-const FG_YELLOW = '\x1b[33m';
-const FG_CYAN = '\x1b[36m';
-const FG_RED = '\x1b[31m';
-const DIM = '\x1b[2m';
-const RESET = '\x1b[0m';
+import {
+  FG_GREEN,
+  FG_YELLOW,
+  FG_CYAN,
+  FG_RED,
+  DIM,
+  RESET,
+} from './colors.js';
 
 export interface FileToUpload {
   relativePath: string;
