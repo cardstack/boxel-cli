@@ -11,6 +11,10 @@ dist/
 # Synced workspaces (never commit workspace content)
 stack.cards/
 boxel.ai/
+boxel-workspaces/
+down/
+down-*/
+up/
 .boxel-sync.json
 .boxel-history/
 
@@ -42,3 +46,35 @@ npm-debug.log*
 # Worktrees
 .claude/worktrees
 .gstack/
+
+# Runtime locks
+.claude/scheduled_tasks.lock
+
+# ─── Drift guards ──────────────────────────────────────────────────────────
+# Content that historically leaked into this repo while working in Boxel
+# workspaces from a CWD inside boxel-cli. These belong to boxel's realm-server,
+# host, or are workspace content — never boxel-cli source. Fail closed: if
+# any of these reappear, they stay untracked instead of silently committed.
+
+# Design docs about Boxel platform (not CLI)
+/docs/yjs-*.md
+/docs/realm-*.md
+/docs/*collaboration*.md
+/docs/boxel-package-*.md
+/docs/catalog-*.md
+/docs/card-field-*.md
+/docs/cross-realm-*.md
+/docs/llm-wiki/
+
+# Data-generation scripts for realms (belong with the workspace they feed)
+/scripts/northwind*
+/scripts/generate-*
+/scripts/fetch-northwind.mjs
+/scripts/northwind-cache/
+
+# JQXL engine tests (the engine lives in realm-server, not here)
+/test/helpers/jqxl-*
+/test/lib/jqxl-*
+
+# Misplaced Claude skills (add legit skills to .claude/commands/ by hand)
+/.claude/commands/extract-theme.md
