@@ -137,3 +137,32 @@ describe('repair-realms batch defaults', () => {
     expect(matchEndpoint).toBe(true);
   });
 });
+
+// Regression test for the bug Buck found on PR #15:
+// `.option('--no-fix-index')` makes commander default fixIndex to TRUE, which
+// silently destroyed customized index.json files (breaking Checkly prerendering).
+// The fix is to use `.option('--fix-index')` (opt-in, default undefined → false).
+// If a future commit flips it back, this test catches it before release.
+describe('repair commander flag parsing', () => {
+  it('defaults fixIndex to undefined (false after nullish coalesce)', async () => {
+    const { Command } = await import('commander');
+    const cmd = new Command()
+      .option('--fix-index', 'Rewrite index.json/cards-grid.json starter cards')
+      .option('--no-touch-index', 'Skip touch mutation in index.json meta');
+
+    cmd.parse(['node', 'test', 'some-arg'], { from: 'node' });
+    const opts = cmd.opts();
+    expect(opts.fixIndex).toBeUndefined();
+    expect((opts.fixIndex as boolean | undefined) ?? false).toBe(false);
+    // touchIndex stays default-on because --no-touch-index means "disable touch"
+    expect(opts.touchIndex).toBe(true);
+  });
+
+  it('enables fixIndex when --fix-index is passed', async () => {
+    const { Command } = await import('commander');
+    const cmd = new Command().option('--fix-index', 'Rewrite index.json/cards-grid.json starter cards');
+
+    cmd.parse(['node', 'test', '--fix-index'], { from: 'node' });
+    expect(cmd.opts().fixIndex).toBe(true);
+  });
+});
