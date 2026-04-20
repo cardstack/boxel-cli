@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { MatrixClient } from './matrix-client.js';
 import { RealmAuthClient } from './realm-auth-client.js';
-import { absoluteStructuredPathForWorkspaceUrl } from './workspace-paths.js';
+import { absoluteStructuredPathForWorkspaceUrl, defaultWorkspacesRoot } from './workspace-paths.js';
 
 interface SyncManifest {
   workspaceUrl: string;
@@ -17,7 +17,7 @@ interface ResolvedWorkspace {
 }
 
 function localDirForWorkspaceUrl(workspaceUrl: string): string {
-  return absoluteStructuredPathForWorkspaceUrl(workspaceUrl, process.cwd());
+  return absoluteStructuredPathForWorkspaceUrl(workspaceUrl, defaultWorkspacesRoot());
 }
 
 /**

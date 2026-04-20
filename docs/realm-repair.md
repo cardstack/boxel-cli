@@ -16,16 +16,16 @@ When `index.json` or `cards-grid.json` must be replaced, existing file content i
 
 ```bash
 # Repair one realm
-boxel repair-realm <workspace-url>
+boxel doctor repair-realm <workspace-url>
 
 # Batch repair all realms for the active profile owner
-boxel repair-realms
+boxel doctor repair-realms
 ```
 
 ## Single-Realm Options
 
 ```bash
-boxel repair-realm <url> \
+boxel doctor repair-realm <url> \
   --match-endpoint \
   --reconcile-matrix \
   --dry-run
@@ -33,14 +33,14 @@ boxel repair-realm <url> \
 
 - `--match-endpoint`: force display name from endpoint slug (for example, `odd-sheep` -> `Odd Sheep`)
 - `--reconcile-matrix`: upsert/remove this specific realm URL in Matrix `app.boxel.realms`
-- `--no-fix-index`: skip `index.json` and `cards-grid.json` repairs
+- `--fix-index`: **opt-in.** Rewrite `index.json` and `cards-grid.json` starter cards. Off by default because this overwrites customized index files (which breaks things like Checkly prerendering that rely on a specific index shape). Only pass this when you know the realm has a standard index.
 - `--no-touch-index`: skip cache-busting mutation in `index.json`
 - `--include-personal`: include the special `personal` realm (excluded by default)
 
 ## Batch Options
 
 ```bash
-boxel repair-realms \
+boxel doctor repair-realms \
   --owner ctse \
   --include-personal \
   --dry-run

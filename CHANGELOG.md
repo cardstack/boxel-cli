@@ -2,6 +2,39 @@
 
 All notable changes to `boxel-cli`. Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.0 — 2026-04-20
+
+Command-surface restructure plus the two regressions @backspace caught in his PR #15 review. Minor version bump because command names and default paths change in user-visible ways.
+
+### New
+
+- **`boxel doctor` parent command** groups maintenance tasks: `doctor repair-realm`, `doctor repair-realms`, `doctor consolidate-workspaces`, `doctor force-reindex`. Keeps the root command tree focused on day-to-day sync operations.
+- **`boxel workspace-list`** (formerly `boxel list`) lists Boxel workspaces the active profile can access. `boxel list` stays as a shorthand alias.
+- **`boxel realms <subcommand>`** — positional subcommands replace the old flag-based interface. `boxel realms add ./path`, `realms remove ./path`, `realms init`, `realms list`, `realms llm`. `boxel realms` with no args shows the list.
+- **Default workspace root at `~/boxel-workspaces/<domain>/<owner>/<realm>/`.** `boxel pull <url>` now works without a local-dir argument — it derives a canonical path from the URL and creates the directory. `doctor consolidate-workspaces` scans `~/boxel-workspaces/` by default.
+- Terminology discipline across docs and help text: **realm** = the server-side thing a URL points at; **workspace** = the Matrix-level organizational unit visible in the Boxel UI.
+
+### Fixed
+
+- **`--fix-index` was on by default, opposite of what PR #15 advertised.** Commander's `.option('--no-fix-index')` makes the underlying boolean default to `true`. Running `boxel doctor repair-realm <url>` silently rewrote `index.json` / `cards-grid.json` even on realms with customized index files (caught by @backspace on the Checkly-prerendered realm that lost its custom index). Flipped to `.option('--fix-index')` — now opt-in. Added regression tests that exercise commander parsing directly.
+- **Pull path extraction broke for published realms without an owner segment.** `https://realms-staging.stack.cards/boxel-homepage/` (1 segment) wrote to `.../boxel-homepage/boxel-homepage` (duplicated); `https://gabbro.staging.boxel.build/` (0 segments) wrote to `.../unknown-owner/workspace` (invented placeholders). The layout now adapts to the URL: 0 segments → `<host>/`, 1 segment → `<host>/<realm>/`, 2+ segments → `<host>/<owner>/<realm>/` (unchanged). `findManifestPaths()` walks 2-level layouts so legacy-path detection still works after the shape change.
+- **`track --push` showed "Push failed" with no detail on batch errors.** Now surfaces the underlying errors (e.g. `HTTP 413: Payload Too Large`) so you can tell a transient server problem from a size limit.
+- **`boxel realms remove <path>`** used to succeed silently on a path not in the config. Now errors with a clear "realm not found" message.
+- **Realm folder naming** now uses the full realm server hostname (no domain normalization). Prevents staging/production collisions when two realms share the owner/realm parts.
+
+### Changed (breaking)
+
+- **`boxel realms --add/--init/--remove/--llm` flag form removed.** PR #15 kept these as hidden aliases; per @backspace's review ("we might as well make a clean break as this is not officially released") they're gone. Use positional subcommands.
+- **`boxel doctor force-reindex`** replaces the top-level `touch` command semantics when used as a diagnostic; the plain `touch` command stays for everyday single-file re-indexing.
+
+### For contributors
+
+- New `test/commands/repair.test.ts` regression tests for commander flag parsing — catches the `--no-fix-index` default-inversion bug at the commander layer (the previous tests only checked the handler's `options.fixIndex ?? false` fallback, which ran after commander had already set the bad default).
+- New `test/lib/workspace-paths.test.ts` cases for 0-segment and 1-segment URLs.
+- Removed dead `realmsCommand()` legacy dispatcher and `RealmsOptions` interface from `src/commands/realms.ts`.
+
+---
+
 ## 1.0.2 — 2026-04-20
 
 Low-risk ports from `@cardstack/boxel-cli` (the official package in the Boxel monorepo). No user-visible command changes; architectural alignment + mild speedups.

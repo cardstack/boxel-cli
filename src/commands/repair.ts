@@ -224,6 +224,8 @@ function buildIndexPayload(realmUrl: string, name: string, touched = false): Rec
       name: 'IndexCard',
     },
   };
+  // _touched: timestamp to force realm server re-index/cache refresh
+  // This is a workaround — if needed, the server may have an indexing bug
   if (touched) {
     meta._touched = Date.now();
   }
@@ -542,12 +544,7 @@ async function repairSingleRealm(
   const desiredIcon = options.icon ?? iconURLFor(desiredName);
   const desiredBackground = options.background ?? getRandomBackgroundURL();
 
-  const shouldNormalizeToEndpoint =
-    options.matchEndpoint && realmConfig.name !== endpointName;
-  const shouldAlignToInferred =
-    !options.matchEndpoint && inferredName && realmConfig.name !== inferredName;
-
-  const nextName = options.force || isBadName(realmConfig.name) || shouldNormalizeToEndpoint || shouldAlignToInferred
+  const nextName = options.force || isBadName(realmConfig.name)
     ? desiredName
     : realmConfig.name;
   const nextIcon = options.force || isBadAssetURL(realmConfig.iconURL)
@@ -893,12 +890,12 @@ export async function repairRealmsCommand(options: RepairManyOptions): Promise<v
 
       console.log(`\n- ${realmUrl}`);
       const result = await repairSingleRealm(realmUrl, realmToken, {
-        matchEndpoint: options.matchEndpoint ?? true,
+        matchEndpoint: options.matchEndpoint ?? false,
         includePersonal: options.includePersonal,
         force: options.force,
         dryRun: options.dryRun,
-        fixIndex: options.fixIndex ?? true,
-        touchIndex: options.touchIndex ?? true,
+        fixIndex: options.fixIndex ?? false,
+        touchIndex: options.touchIndex ?? false,
       });
       printRepairSummary(result);
 

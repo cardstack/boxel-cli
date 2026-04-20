@@ -10,18 +10,18 @@ Use this workflow when a workspace has any of these symptoms:
 
 ```bash
 # Inspect one realm without mutating
-boxel repair-realm <workspace-url> --dry-run
+boxel doctor repair-realm <workspace-url> --dry-run
 
 # Repair one realm
-boxel repair-realm <workspace-url>
+boxel doctor repair-realm <workspace-url>
 
 # Repair all realms owned by active profile user
-boxel repair-realms
+boxel doctor repair-realms
 ```
 
 ## Behavior
 
-`repair-realm` and `repair-realms` perform these repairs:
+`doctor repair-realm` and `doctor repair-realms` perform these repairs:
 - `.realm.json`: normalize `name`, `iconURL`, `backgroundURL`
 - `index.json`: ensure `relationships.cardsGrid.links.self` = `./cards-grid`
 - `cards-grid.json`: restore default cards-grid card if missing/corrupt

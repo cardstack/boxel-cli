@@ -30,12 +30,12 @@ import { editCommand } from './commands/edit.js';
 import { milestoneCommand } from './commands/milestone.js';
 import { shareCommand } from './commands/share.js';
 import { gatherCommand } from './commands/gather.js';
-import { realmsCommand } from './commands/realms.js';
+import { realmsListCommand, realmsAddCommand, realmsRemoveCommand, realmsInitCommand, realmsLlmCommand } from './commands/realms.js';
 import { profileCommand } from './commands/profile.js';
 import { repairRealmCommand, repairRealmsCommand } from './commands/repair.js';
 import { consolidateWorkspacesCommand } from './commands/consolidate.js';
 import { loadConfig } from './lib/realm-config.js';
-import { warnIfLegacyWorkspacePaths } from './lib/workspace-paths.js';
+import { warnIfLegacyWorkspacePaths, defaultWorkspacesRoot, absoluteStructuredPathForWorkspaceUrl } from './lib/workspace-paths.js';
 import { createRequire } from 'module';
 
 // Read version from package.json so `boxel --version` stays in sync with the
@@ -64,13 +64,14 @@ program.hook('preAction', (_thisCommand, actionCommand) => {
     'edit',
     'history',
     'list',
+    'workspace-list',
     'remove',
   ]);
 
   if (!warningEligibleCommands.has(commandName)) {
     return;
   }
-  warnIfLegacyWorkspacePaths(process.cwd());
+  warnIfLegacyWorkspacePaths(defaultWorkspacesRoot());
 });
 
 program
@@ -91,17 +92,18 @@ program
   .command('pull')
   .description('Pull files from a Boxel workspace to a local directory')
   .argument('<workspace-url>', 'The URL of the source workspace (e.g., https://app.boxel.ai/demo/)')
-  .argument('<local-dir>', 'The local directory to sync files to')
+  .argument('[local-dir]', 'The local directory to sync files to (default: ~/boxel-workspaces/<domain>/<owner>/<realm>)')
   .option('--delete', 'Delete local files that do not exist in the workspace')
   .option('--dry-run', 'Show what would be done without making changes')
-  .action(async (workspaceUrl: string, localDir: string, options: { delete?: boolean; dryRun?: boolean }) => {
-    await pullCommand(workspaceUrl, localDir, options);
+  .action(async (workspaceUrl: string, localDir: string | undefined, options: { delete?: boolean; dryRun?: boolean }) => {
+    const resolvedDir = localDir || absoluteStructuredPathForWorkspaceUrl(workspaceUrl, defaultWorkspacesRoot());
+    await pullCommand(workspaceUrl, resolvedDir, options);
   });
 
 program
-  .command('list')
-  .alias('ls')
-  .description('List your workspaces (UI list by default)')
+  .command('workspace-list')
+  .alias('list')
+  .description('List workspaces from your Boxel account')
   .option('--json', 'Output as JSON')
   .option('--all-accessible', 'List all realms from _realm-auth (including hidden ones)')
   .option('--hidden', 'List realms accessible to you but not in your UI workspace list')
@@ -357,34 +359,65 @@ program
     });
   });
 
-program
+const realmsCmd = program
   .command('realms')
-  .description('Manage configured realms for multi-realm workflows')
-  .option('--init', 'Initialize .boxel-workspaces.json config file')
-  .option('--add <path>', 'Add a realm to the config')
-  .option('--remove <path>', 'Remove a realm from the config')
-  .option('--purpose <text>', 'Set the purpose/description for the realm (use with --add)')
-  .option('--patterns <list>', 'Comma-separated file patterns for this realm (use with --add)')
-  .option('--card-types <list>', 'Comma-separated card types for this realm (use with --add)')
-  .option('--notes <text>', 'Free-form notes for LLM guidance (use with --add)')
-  .option('--default', 'Set this realm as the default (use with --add)')
-  .option('--llm', 'Output LLM-friendly guidance for file placement')
-  .action(async (options: {
-    init?: boolean;
-    add?: string;
-    remove?: string;
+  .description('Manage local realm configurations for development')
+  .action(async () => {
+    // `boxel realms` with no subcommand shows the list
+    await realmsListCommand();
+  });
+
+realmsCmd
+  .command('list')
+  .description('List configured realms')
+  .action(async () => {
+    await realmsListCommand();
+  });
+
+realmsCmd
+  .command('add')
+  .description('Add a realm to the config')
+  .argument('<path>', 'Path to the realm directory')
+  .option('--purpose <text>', 'Set the purpose/description for the realm')
+  .option('--patterns <list>', 'Comma-separated file patterns for this realm')
+  .option('--card-types <list>', 'Comma-separated card types for this realm')
+  .option('--notes <text>', 'Free-form notes for LLM guidance')
+  .option('--default', 'Set this realm as the default')
+  .action(async (realmPath: string, options: {
     purpose?: string;
     patterns?: string;
     cardTypes?: string;
     notes?: string;
     default?: boolean;
-    llm?: boolean;
   }) => {
-    await realmsCommand(options);
+    await realmsAddCommand(realmPath, options);
   });
 
+realmsCmd
+  .command('remove')
+  .description('Remove a realm from the config')
+  .argument('<path>', 'Path of the realm to remove')
+  .action(async (realmPath: string) => {
+    await realmsRemoveCommand(realmPath);
+  });
+
+realmsCmd
+  .command('init')
+  .description('Initialize .boxel-workspaces.json config file')
+  .action(async () => {
+    await realmsInitCommand();
+  });
+
+realmsCmd
+  .command('llm')
+  .description('Output LLM-friendly guidance for file placement')
+  .action(async () => {
+    await realmsLlmCommand();
+  });
+
+// Legacy top-level aliases (hidden, kept for backwards compat)
 program
-  .command('consolidate-workspaces')
+  .command('consolidate-workspaces', { hidden: true })
   .description('Move legacy local workspace dirs into domain/owner/realm structure')
   .argument('[root-dir]', 'Root directory to scan (default: current directory)')
   .option('--dry-run', 'Show what would move without making changes')
@@ -393,16 +426,59 @@ program
   });
 
 program
+  .command('repair-realm', { hidden: true })
+  .argument('<workspace-url>')
+  .option('--name <name>')
+  .option('--icon <url>')
+  .option('--background <url>')
+  .option('--match-endpoint')
+  .option('--include-personal')
+  .option('--force')
+  .option('--fix-index')
+  .option('--no-touch-index')
+  .option('--reconcile-matrix')
+  .option('--dry-run')
+  .action(async (workspaceUrl: string, options: {
+    name?: string; icon?: string; background?: string; matchEndpoint?: boolean;
+    includePersonal?: boolean; force?: boolean; fixIndex?: boolean; touchIndex?: boolean;
+    reconcileMatrix?: boolean; dryRun?: boolean;
+  }) => {
+    await repairRealmCommand(workspaceUrl, options);
+  });
+
+program
+  .command('repair-realms', { hidden: true })
+  .option('--owner <username>')
+  .option('--match-endpoint')
+  .option('--include-personal')
+  .option('--force')
+  .option('--fix-index')
+  .option('--no-touch-index')
+  .option('--no-reconcile-matrix')
+  .option('--dry-run')
+  .action(async (options: {
+    owner?: string; matchEndpoint?: boolean; includePersonal?: boolean; force?: boolean;
+    fixIndex?: boolean; touchIndex?: boolean; reconcileMatrix?: boolean; dryRun?: boolean;
+  }) => {
+    await repairRealmsCommand(options);
+  });
+
+// boxel doctor — maintenance and diagnostic commands
+const doctorCmd = program
+  .command('doctor')
+  .description('Maintenance and diagnostic commands for Boxel workspaces and realms');
+
+doctorCmd
   .command('repair-realm')
-  .description('Repair one workspace metadata and starter cards (.realm.json, index.json, cards-grid.json)')
-  .argument('<workspace-url>', 'Workspace URL to repair (e.g., https://realms-staging.stack.cards/user/workspace/)')
+  .description('Repair one realm\'s metadata and starter cards (.realm.json, index.json)')
+  .argument('<workspace-url>', 'Realm URL to repair (e.g., https://realms-staging.stack.cards/user/workspace/)')
   .option('--name <name>', 'Explicit display name to set')
   .option('--icon <url>', 'Explicit icon URL to set')
   .option('--background <url>', 'Explicit background URL to set')
   .option('--match-endpoint', 'Restore name to endpoint-derived title (e.g., welcome-gorilla -> Welcome Gorilla)')
   .option('--include-personal', 'Allow repairing the special personal realm (skipped by default)')
   .option('--force', 'Overwrite name/icon/background even if present')
-  .option('--no-fix-index', 'Skip index.json/cards-grid.json repair')
+  .option('--fix-index', 'Rewrite index.json/cards-grid.json starter cards (opt-in; destructive to customized index files)')
   .option('--no-touch-index', 'Skip touch mutation in index.json meta')
   .option('--reconcile-matrix', 'Also reconcile app.boxel.realms entry for this realm URL')
   .option('--dry-run', 'Show proposed repairs without sending changes')
@@ -421,14 +497,14 @@ program
     await repairRealmCommand(workspaceUrl, options);
   });
 
-program
+doctorCmd
   .command('repair-realms')
-  .description('Batch repair all accessible realms for an owner and reconcile Matrix workspace list')
+  .description('Batch repair all accessible realms for an owner')
   .option('--owner <username>', 'Owner username to repair (default: active profile username)')
-  .option('--match-endpoint', 'Restore names to endpoint-derived title case (default behavior)')
+  .option('--match-endpoint', 'Restore names to endpoint-derived title case')
   .option('--include-personal', 'Include the special personal realm (excluded by default)')
   .option('--force', 'Force overwrite of name/icon/background')
-  .option('--no-fix-index', 'Skip index.json/cards-grid.json repair')
+  .option('--fix-index', 'Rewrite index.json/cards-grid.json starter cards (opt-in; destructive to customized index files)')
   .option('--no-touch-index', 'Skip touch mutation in index.json meta')
   .option('--no-reconcile-matrix', 'Skip app.boxel.realms reconciliation')
   .option('--dry-run', 'Show proposed repairs without sending changes')
@@ -443,6 +519,26 @@ program
     dryRun?: boolean;
   }) => {
     await repairRealmsCommand(options);
+  });
+
+doctorCmd
+  .command('consolidate-workspaces')
+  .description('Fix local workspace directory structure (move to domain/owner/realm)')
+  .argument('[root-dir]', 'Root directory to scan (default: current directory)')
+  .option('--dry-run', 'Show what would move without making changes')
+  .action(async (rootDir: string | undefined, options: { dryRun?: boolean }) => {
+    await consolidateWorkspacesCommand(rootDir, options);
+  });
+
+doctorCmd
+  .command('force-reindex')
+  .description('Force realm server to re-index files (workaround for server bug)')
+  .argument('[workspace]', 'Workspace reference: . | ./path | @user/workspace (default: .)')
+  .argument('[files...]', 'Specific files to touch (default: all .json and .gts files)')
+  .option('--all', 'Touch all .json and .gts files')
+  .option('--dry-run', 'Show what would be done without making changes')
+  .action(async (workspace: string | undefined, files: string[], options: { all?: boolean; dryRun?: boolean }) => {
+    await touchCommand(workspace || '.', files || [], options);
   });
 
 program
@@ -478,11 +574,12 @@ Workspace References:
 
 Examples:
   boxel create my-project "My Project"   Create a new workspace
-  boxel list                             List all accessible workspaces
+  boxel workspace-list                   List all accessible workspaces
   boxel remove https://...               Soft remove realm from your account list
-  boxel consolidate-workspaces .         Move old local sync dirs into domain/owner/realm
-  boxel repair-realm https://...         Repair one realm metadata + starter cards
-  boxel repair-realms                    Batch repair all owned realms
+  boxel doctor repair-realm https://...  Repair one realm metadata + starter cards
+  boxel doctor repair-realms             Batch repair all owned realms
+  boxel doctor consolidate-workspaces .  Fix local workspace directory structure
+  boxel doctor force-reindex .           Force re-index files on server
 
   boxel status                     Check current directory
   boxel status @aallen90/personal  Check specific workspace by name

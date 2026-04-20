@@ -38,8 +38,8 @@ Trigger examples:
 - `sync`: bidirectional conflict resolution
 - `track`: local file watching with auto-checkpoints (use `--push` for real-time server sync)
 - `watch`: remote change watching (pulls server changes)
-- `repair-realm`: repair one realm metadata + starter cards + optional Matrix reconciliation
-- `repair-realms`: batch repair all owned realms and reconcile Matrix realm list
+- `doctor repair-realm`: repair one realm metadata + starter cards + optional Matrix reconciliation
+- `doctor repair-realms`: batch repair all owned realms and reconcile Matrix realm list
 
 After local edits tracked with `track`, push to server with:
 - `boxel sync . --prefer-local`
@@ -49,16 +49,16 @@ After local edits tracked with `track`, push to server with:
 If user has no profile configured:
 1. `npx boxel profile`
 2. `npx boxel profile add` (interactive preferred)
-3. `npx boxel list`
-4. First sync/pull into local workspace
+3. `npx boxel workspace-list`
+4. First sync/pull into local workspace (default root: `~/boxel-workspaces/`)
 
 Security note:
 - Prefer interactive password entry or `BOXEL_PASSWORD` env var.
 - Avoid plain `-p` password usage in shell history.
 
 ## Multi-Realm Guidance
-- Configure realms with `boxel realms --add ...`
-- Use `boxel realms --llm` for file-placement guidance.
+- Configure realms with `boxel realms add ...`
+- Use `boxel realms llm` for file-placement guidance.
 - Heuristic:
   - `.gts` -> code realm (`*.gts` pattern)
   - instances -> realm mapped for card type

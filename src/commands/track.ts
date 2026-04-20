@@ -228,13 +228,16 @@ export async function trackCommand(
             {
               batchSize: 10,
               definitionsFirst: true,
-              quiet: !options.verbose,
+              quiet: false,
               verbose: options.verbose,
             }
           );
 
           if (result.failed > 0) {
             console.log(`  ⚠️  Push: ${result.uploaded} succeeded, ${result.failed} failed`);
+            for (const err of result.errors) {
+              console.log(`    ✗ ${err.path}: ${err.error}`);
+            }
           } else {
             console.log(`  ✓  Pushed ${result.uploaded} files (${result.timeMs}ms)`);
           }
