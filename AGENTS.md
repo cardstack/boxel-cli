@@ -33,7 +33,7 @@ Trigger examples:
 - Working in a synced workspace (`.boxel-sync.json` present)
 
 ## Core Command Semantics
-- `pull`: remote -> local
+- `pull`: remote -> local (also writes `.boxel-sync.json` so `sync` works immediately)
 - `push`: local -> remote
 - `sync`: bidirectional conflict resolution
 - `track`: local file watching with auto-checkpoints (use `--push` for real-time server sync)

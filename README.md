@@ -223,6 +223,8 @@ boxel push ./local <url> --delete # Push and remove orphaned remote files
 boxel pull <url> ./local          # One-way pull (remote → local)
 ```
 
+> **Note:** `boxel pull` writes `.boxel-sync.json` automatically after a fresh download, so you can run `boxel sync .` immediately against a freshly-pulled workspace with no extra setup.
+
 **Failed download cleanup:** When `sync` encounters files that return 500 errors (broken on server), it will prompt you to delete them:
 ```
 ⚠️  3 file(s) failed to download (server error):
