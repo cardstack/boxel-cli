@@ -34,21 +34,25 @@ function scanWorkspaceForChanges(workspaceDir: string): CheckpointChange[] {
   return changes;
 }
 
-// ANSI escape codes for terminal control
+import {
+  FG_GREEN,
+  FG_YELLOW,
+  FG_CYAN,
+  FG_MAGENTA,
+  FG_RED,
+  FG_WHITE,
+  BG_BLUE,
+  BOLD,
+  DIM,
+  RESET,
+} from '../lib/colors.js';
+
+// Terminal-control sequences that aren't in the shared colors module
+// (they aren't styling, they move the cursor / clear the screen).
 const ESC = '\x1b';
 const CLEAR_SCREEN = `${ESC}[2J${ESC}[H`;
 const HIDE_CURSOR = `${ESC}[?25l`;
 const SHOW_CURSOR = `${ESC}[?25h`;
-const BOLD = `${ESC}[1m`;
-const DIM = `${ESC}[2m`;
-const RESET = `${ESC}[0m`;
-const FG_CYAN = `${ESC}[36m`;
-const FG_YELLOW = `${ESC}[33m`;
-const FG_GREEN = `${ESC}[32m`;
-const FG_RED = `${ESC}[31m`;
-const FG_MAGENTA = `${ESC}[35m`;
-const BG_BLUE = `${ESC}[44m`;
-const FG_WHITE = `${ESC}[37m`;
 
 interface HistoryOptions {
   restore?: boolean | string;

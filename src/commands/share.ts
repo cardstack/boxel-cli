@@ -4,15 +4,16 @@ import { execSync, spawnSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 
-// ANSI color codes
-const FG_GREEN = '\x1b[32m';
-const FG_YELLOW = '\x1b[33m';
-const FG_CYAN = '\x1b[36m';
-const FG_MAGENTA = '\x1b[35m';
-const FG_RED = '\x1b[31m';
-const DIM = '\x1b[2m';
-const BOLD = '\x1b[1m';
-const RESET = '\x1b[0m';
+import {
+  FG_GREEN,
+  FG_YELLOW,
+  FG_CYAN,
+  FG_MAGENTA,
+  FG_RED,
+  DIM,
+  BOLD,
+  RESET,
+} from '../lib/colors.js';
 
 interface ShareOptions {
   milestone?: string;
