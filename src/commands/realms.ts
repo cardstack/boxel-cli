@@ -108,50 +108,6 @@ export async function realmsLlmCommand(): Promise<void> {
   console.log(generateLLMGuidance(config));
 }
 
-// Legacy flag-based interface (backwards compat)
-interface RealmsOptions {
-  add?: string;
-  remove?: string;
-  purpose?: string;
-  patterns?: string;
-  cardTypes?: string;
-  notes?: string;
-  default?: boolean;
-  llm?: boolean;
-  init?: boolean;
-}
-
-export async function realmsCommand(options: RealmsOptions): Promise<void> {
-  if (options.init) {
-    await realmsInitCommand();
-    return;
-  }
-
-  if (options.add) {
-    await realmsAddCommand(options.add, {
-      purpose: options.purpose,
-      patterns: options.patterns,
-      cardTypes: options.cardTypes,
-      notes: options.notes,
-      default: options.default,
-    });
-    return;
-  }
-
-  if (options.remove) {
-    await realmsRemoveCommand(options.remove);
-    return;
-  }
-
-  if (options.llm) {
-    await realmsLlmCommand();
-    return;
-  }
-
-  // Default: show summary
-  await realmsListCommand();
-}
-
 export async function updateRealmConfig(
   realmPath: string,
   updates: Partial<RealmConfig>

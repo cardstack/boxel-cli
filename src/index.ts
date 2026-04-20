@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import 'dotenv/config';
-import { Command, InvalidArgumentError, Option } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 
 /** Parse a positive integer from a CLI flag; throw a friendly error otherwise. */
 function parsePositiveInt(raw: string, _prev: unknown): number {
@@ -30,7 +30,7 @@ import { editCommand } from './commands/edit.js';
 import { milestoneCommand } from './commands/milestone.js';
 import { shareCommand } from './commands/share.js';
 import { gatherCommand } from './commands/gather.js';
-import { realmsCommand, realmsListCommand, realmsAddCommand, realmsRemoveCommand, realmsInitCommand, realmsLlmCommand } from './commands/realms.js';
+import { realmsListCommand, realmsAddCommand, realmsRemoveCommand, realmsInitCommand, realmsLlmCommand } from './commands/realms.js';
 import { profileCommand } from './commands/profile.js';
 import { repairRealmCommand, repairRealmsCommand } from './commands/repair.js';
 import { consolidateWorkspacesCommand } from './commands/consolidate.js';
@@ -362,33 +362,9 @@ program
 const realmsCmd = program
   .command('realms')
   .description('Manage local realm configurations for development')
-  .addOption(new Option('--init').hideHelp())
-  .addOption(new Option('--add <path>').hideHelp())
-  .addOption(new Option('--remove <path>').hideHelp())
-  .addOption(new Option('--purpose <text>').hideHelp())
-  .addOption(new Option('--patterns <list>').hideHelp())
-  .addOption(new Option('--card-types <list>').hideHelp())
-  .addOption(new Option('--notes <text>').hideHelp())
-  .addOption(new Option('--default').hideHelp())
-  .addOption(new Option('--llm').hideHelp())
-  .action(async (options: {
-    init?: boolean;
-    add?: string;
-    remove?: string;
-    purpose?: string;
-    patterns?: string;
-    cardTypes?: string;
-    notes?: string;
-    default?: boolean;
-    llm?: boolean;
-  }) => {
-    // Handle legacy flag-based usage
-    if (options.init || options.add || options.remove || options.llm) {
-      await realmsCommand(options);
-    } else {
-      // Default: show list
-      await realmsListCommand();
-    }
+  .action(async () => {
+    // `boxel realms` with no subcommand shows the list
+    await realmsListCommand();
   });
 
 realmsCmd
