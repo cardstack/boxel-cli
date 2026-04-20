@@ -33,7 +33,7 @@ boxel doctor repair-realm <url> \
 
 - `--match-endpoint`: force display name from endpoint slug (for example, `odd-sheep` -> `Odd Sheep`)
 - `--reconcile-matrix`: upsert/remove this specific realm URL in Matrix `app.boxel.realms`
-- `--no-fix-index`: skip `index.json` and `cards-grid.json` repairs
+- `--fix-index`: **opt-in.** Rewrite `index.json` and `cards-grid.json` starter cards. Off by default because this overwrites customized index files (which breaks things like Checkly prerendering that rely on a specific index shape). Only pass this when you know the realm has a standard index.
 - `--no-touch-index`: skip cache-busting mutation in `index.json`
 - `--include-personal`: include the special `personal` realm (excluded by default)
 

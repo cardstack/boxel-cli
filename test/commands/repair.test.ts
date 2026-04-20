@@ -113,28 +113,24 @@ describe('repair name logic', () => {
   });
 });
 
-describe('repair-realms batch defaults', () => {
-  it('defaults to not fixing index in batch mode', () => {
-    // Verify the default values match what we set in the code
+// NOTE: these tests check the handler-level `options.xxx ?? false` fallback
+// behavior when a caller (e.g. a test harness or programmatic invocation)
+// passes an empty options object. They do NOT cover the commander CLI
+// defaults — for that, see "repair commander flag parsing" below, which
+// parses commander directly and is the test that catches the real bug.
+describe('repair-realms handler fallback behavior', () => {
+  it('treats absent options.fixIndex as false', () => {
     const options: { fixIndex?: boolean; touchIndex?: boolean; matchEndpoint?: boolean } = {};
-    const fixIndex = options.fixIndex ?? false;
-    const touchIndex = options.touchIndex ?? false;
-    const matchEndpoint = options.matchEndpoint ?? false;
-
-    expect(fixIndex).toBe(false);
-    expect(touchIndex).toBe(false);
-    expect(matchEndpoint).toBe(false);
+    expect(options.fixIndex ?? false).toBe(false);
+    expect(options.touchIndex ?? false).toBe(false);
+    expect(options.matchEndpoint ?? false).toBe(false);
   });
 
-  it('respects explicit opt-in for index fixing', () => {
+  it('respects explicit opt-in', () => {
     const options = { fixIndex: true, touchIndex: true, matchEndpoint: true };
-    const fixIndex = options.fixIndex ?? false;
-    const touchIndex = options.touchIndex ?? false;
-    const matchEndpoint = options.matchEndpoint ?? false;
-
-    expect(fixIndex).toBe(true);
-    expect(touchIndex).toBe(true);
-    expect(matchEndpoint).toBe(true);
+    expect(options.fixIndex ?? false).toBe(true);
+    expect(options.touchIndex ?? false).toBe(true);
+    expect(options.matchEndpoint ?? false).toBe(true);
   });
 });
 
