@@ -41,3 +41,4 @@ npm-debug.log*
 
 # Worktrees
 .claude/worktrees
+.gstack/
