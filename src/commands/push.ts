@@ -5,9 +5,32 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 
+interface SyncManifestFile {
+  localHash: string;    // md5 of file bytes at last sync
+  remoteMtime: number;  // remote mtime at last sync (seconds)
+}
+
 interface SyncManifest {
   workspaceUrl: string;
-  files: Record<string, string>; // relativePath -> contentHash
+  lastSyncTime?: number;
+  files: Record<string, SyncManifestFile>;
+}
+
+// Old push-only manifest format kept for migration. Matches the detector in sync.ts.
+interface OldManifest {
+  workspaceUrl: string;
+  files: Record<string, string>;
+}
+
+function isOldManifest(m: unknown): m is OldManifest {
+  if (!m || typeof m !== 'object') return false;
+  const files = (m as { files?: unknown }).files;
+  if (!files || typeof files !== 'object') return false;
+  for (const v of Object.values(files as Record<string, unknown>)) {
+    if (typeof v === 'string') return true;
+    if (v && typeof v === 'object') return false;
+  }
+  return false;
 }
 
 function computeFileHash(filePath: string): string {
@@ -17,14 +40,24 @@ function computeFileHash(filePath: string): string {
 
 function loadManifest(localDir: string): SyncManifest | null {
   const manifestPath = path.join(localDir, '.boxel-sync.json');
-  if (fs.existsSync(manifestPath)) {
-    try {
-      return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    } catch {
-      return null;
+  if (!fs.existsSync(manifestPath)) return null;
+  try {
+    const raw = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    if (isOldManifest(raw)) {
+      // Migrate: old { files: {path: hash} } → new { files: {path: {localHash, remoteMtime: 0}} }
+      const migrated: SyncManifest = {
+        workspaceUrl: raw.workspaceUrl,
+        files: {},
+      };
+      for (const [p, hash] of Object.entries(raw.files)) {
+        migrated.files[p] = { localHash: hash, remoteMtime: 0 };
+      }
+      return migrated;
     }
+    return raw as SyncManifest;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 function saveManifest(localDir: string, manifest: SyncManifest): void {
@@ -105,14 +138,15 @@ class RealmPusher extends RealmSyncBase {
           continue;
         }
         const currentHash = computeFileHash(localPath);
-        const previousHash = manifest.files[relativePath];
+        const previousEntry = manifest.files[relativePath];
+        const previousHash = previousEntry?.localHash;
 
         if (previousHash !== currentHash) {
           filesToUpload.set(relativePath, localPath);
         } else {
           skipped++;
-          // Keep the hash in new manifest
-          newManifest.files[relativePath] = currentHash;
+          // Keep the entry in new manifest (preserve remoteMtime)
+          newManifest.files[relativePath] = previousEntry;
         }
       }
 
@@ -147,7 +181,10 @@ class RealmPusher extends RealmSyncBase {
         for (const file of definitions) {
           try {
             await this.uploadFile(file.relativePath, file.localPath);
-            newManifest.files[file.relativePath] = computeFileHash(file.localPath);
+            newManifest.files[file.relativePath] = {
+              localHash: computeFileHash(file.localPath),
+              remoteMtime: 0, // will be filled in by the remote-mtime refresh below
+            };
           } catch (error) {
             this.hasError = true;
             console.error(`Error uploading ${file.relativePath}:`, error);
@@ -165,12 +202,16 @@ class RealmPusher extends RealmSyncBase {
           dryRun: this.options.dryRun,
         });
 
-        // Update manifest for successfully uploaded files
-        if (result.uploaded > 0) {
-          for (const file of instances) {
-            if (fs.existsSync(file.localPath)) {
-              newManifest.files[file.relativePath] = computeFileHash(file.localPath);
-            }
+        // Mark only SUCCESSFUL files in the manifest. Failures stay out so the
+        // next run retries them.
+        const failedPaths = new Set(result.errors.map(e => e.path));
+        for (const file of instances) {
+          if (failedPaths.has(file.relativePath)) continue;
+          if (fs.existsSync(file.localPath)) {
+            newManifest.files[file.relativePath] = {
+              localHash: computeFileHash(file.localPath),
+              remoteMtime: 0, // refreshed below
+            };
           }
         }
 
@@ -188,7 +229,10 @@ class RealmPusher extends RealmSyncBase {
         try {
           await this.uploadFile(relativePath, localPath);
           // Add to manifest after successful upload
-          newManifest.files[relativePath] = computeFileHash(localPath);
+          newManifest.files[relativePath] = {
+            localHash: computeFileHash(localPath),
+            remoteMtime: 0, // refreshed below
+          };
         } catch (error) {
           this.hasError = true;
           console.error(`Error uploading ${relativePath}:`, error);
@@ -226,6 +270,29 @@ class RealmPusher extends RealmSyncBase {
           }
         }
       }
+    }
+
+    // Refresh remote mtimes for every file we just put in the manifest so
+    // subsequent sync/pull operations don't mistakenly see remote-as-changed.
+    // Skip on dry-run (no network side effects).
+    if (!this.options.dryRun && Object.keys(newManifest.files).length > 0) {
+      try {
+        const remoteMtimes = await this.getRemoteMtimes();
+        for (const [relPath, entry] of Object.entries(newManifest.files)) {
+          const mtime = remoteMtimes.get(relPath);
+          if (typeof mtime === 'number') {
+            entry.remoteMtime = mtime;
+          } else if (entry.remoteMtime === 0) {
+            // Fall back to local time in seconds; imperfect but better than 0
+            entry.remoteMtime = Math.floor(Date.now() / 1000);
+          }
+        }
+      } catch (err) {
+        // Non-fatal: manifest entries stay with remoteMtime:0 and sync will
+        // reconcile on next run
+        console.warn('Warning: could not refresh remote mtimes for manifest:', err);
+      }
+      newManifest.lastSyncTime = Date.now();
     }
 
     // Save manifest for future incremental syncs

@@ -8,7 +8,13 @@ const EXTENSION_MAP: Record<string, string> = {
   '.css': 'text/css',
   '.js': 'application/javascript',
   '.ts': 'application/typescript',
+  '.tsx': 'application/typescript',
+  '.jsx': 'application/javascript',
   '.mjs': 'application/javascript',
+  '.cjs': 'application/javascript',
+  '.scss': 'text/x-scss',
+  '.less': 'text/x-less',
+  '.sass': 'text/x-sass',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -37,6 +43,8 @@ export function getContentType(filePath: string): string {
 }
 
 export function isTextFile(contentType: string): boolean {
+  // Includes the text/x-* family so .scss/.less/.sass route through the
+  // text path and match ATOMIC_SOURCE_EXTENSIONS.
   return (
     contentType.startsWith('text/') ||
     contentType === 'application/json' ||
