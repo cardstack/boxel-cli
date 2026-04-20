@@ -40,9 +40,19 @@ export function relativeStructuredPathForWorkspaceUrl(workspaceUrl: string): str
   const url = new URL(workspaceUrl);
   const domain = canonicalDomainFromHost(url.hostname);
   const parts = url.pathname.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
-  const owner = parts[0] ?? 'unknown-owner';
-  const realm = parts[1] ?? parts[0] ?? 'workspace';
-  return path.join(domain, owner, realm);
+
+  // Published realms don't always have an owner in the URL — adapt the layout
+  // so we don't invent fake owner segments or duplicate the realm name.
+  if (parts.length === 0) {
+    // e.g. https://gabbro.staging.boxel.build/ → <host>/
+    return domain;
+  }
+  if (parts.length === 1) {
+    // e.g. https://realms-staging.stack.cards/boxel-homepage/ → <host>/<realm>/
+    return path.join(domain, parts[0]);
+  }
+  // Standard owned realm: <host>/<owner>/<realm>/
+  return path.join(domain, parts[0], parts[1]);
 }
 
 export function absoluteStructuredPathForWorkspaceUrl(workspaceUrl: string, rootDir: string): string {
@@ -83,12 +93,22 @@ function findManifestPaths(rootDir: string): string[] {
   const manifests: string[] = [];
   const absoluteRoot = path.resolve(rootDir);
 
-  // Legacy layout: <root>/<realm>/.boxel-sync.json
+  // One-level: <root>/<x>/.boxel-sync.json
+  // Covers legacy <root>/<realm>/ AND the new 0-segment canonical case where
+  // a published realm with no path lives at <root>/<host>/.
   for (const childDir of listSubdirs(absoluteRoot)) {
     addManifestIfExists(childDir, manifests);
   }
 
-  // Canonical layout: <root>/<domain>/<owner>/<realm>/.boxel-sync.json
+  // Two-level: <root>/<domain>/<realm>/.boxel-sync.json
+  // The canonical shape for 1-segment published realms (no owner in URL).
+  for (const domainDir of listSubdirs(absoluteRoot)) {
+    for (const realmDir of listSubdirs(domainDir)) {
+      addManifestIfExists(realmDir, manifests);
+    }
+  }
+
+  // Three-level canonical: <root>/<domain>/<owner>/<realm>/.boxel-sync.json
   for (const domainDir of listSubdirs(absoluteRoot)) {
     for (const ownerDir of listSubdirs(domainDir)) {
       for (const realmDir of listSubdirs(ownerDir)) {

@@ -53,6 +53,43 @@ describe('relativeStructuredPathForWorkspaceUrl', () => {
     );
     expect(result).toBe('custom-realm.example.com/owner/workspace');
   });
+
+  // Regression: backspace reported on PR #15 that 0-segment published realms
+  // fell back to 'unknown-owner/workspace' and 1-segment realms duplicated the
+  // realm name as 'owner/realm'. The tolerant layout drops the owner layer
+  // when the URL doesn't provide one.
+  describe('published realms without an owner segment', () => {
+    it('uses <host> only for 0-segment URLs', () => {
+      const result = relativeStructuredPathForWorkspaceUrl(
+        'https://gabbro.staging.boxel.build/'
+      );
+      expect(result).toBe('gabbro.staging.boxel.build');
+    });
+
+    it('uses <host>/<realm> for 1-segment URLs (no duplicated owner)', () => {
+      const result = relativeStructuredPathForWorkspaceUrl(
+        'https://realms-staging.stack.cards/boxel-homepage/'
+      );
+      expect(result).toBe('realms-staging.stack.cards/boxel-homepage');
+    });
+
+    it('uses <host>/<realm> for 1-segment URLs without trailing slash', () => {
+      const result = relativeStructuredPathForWorkspaceUrl(
+        'https://realms-staging.stack.cards/boxel-homepage'
+      );
+      expect(result).toBe('realms-staging.stack.cards/boxel-homepage');
+    });
+
+    it('never invents "unknown-owner" or "workspace" placeholders', () => {
+      const zero = relativeStructuredPathForWorkspaceUrl('https://gabbro.staging.boxel.build/');
+      const one = relativeStructuredPathForWorkspaceUrl('https://realms-staging.stack.cards/boxel-homepage/');
+      expect(zero).not.toContain('unknown-owner');
+      expect(zero).not.toContain('workspace');
+      expect(one).not.toContain('unknown-owner');
+      // The realm name itself may be 'workspace' — we only reject the placeholder
+      // that used to appear when the URL had no segments at all.
+    });
+  });
 });
 
 describe('defaultWorkspacesRoot', () => {
