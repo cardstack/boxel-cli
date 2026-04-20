@@ -192,12 +192,16 @@ boxel sync . --prefer-newest      # Keep newest version
 boxel sync . --delete             # Sync deletions both ways
 boxel sync . --dry-run            # Preview only
 
-boxel push ./local <url>          # One-way push (local → remote)
-boxel push ./local <url> --delete # Push and remove orphaned remote files
-boxel pull <url> ./local          # One-way pull (remote → local)
+boxel push ./local <url>                      # One-way push (local → remote)
+boxel push ./local <url> --delete             # Push and remove orphaned remote files
+boxel push ./local <url> --batch              # Atomic batch upload (10/batch default)
+boxel push ./local <url> --batch --batch-size 25  # Custom batch size
+boxel pull <url> ./local                      # One-way pull (remote → local)
 ```
 
 > **Pull writes a manifest:** After `boxel pull <url> ./local` downloads files, it automatically writes `.boxel-sync.json` so `boxel sync .` works immediately against the fresh directory. No manual step needed between pull and first sync.
+
+> **`push --batch`:** `.gts` definitions upload individually in dependency order; `.json` instances batch through `/_atomic` in groups of N. Faster for bulk pushes (50+ files). Binary files (images, fonts) and plain-text files (`.md`, `.csv`, `.yaml`) always take the per-file POST path because `/_atomic` only accepts card and source resource types.
 
 **Failed download cleanup:** When `sync` encounters files that return 500 errors (broken/corrupted on server), it will prompt you to delete them:
 ```
