@@ -1,5 +1,6 @@
 import { MatrixClient, passwordFromSeed } from './matrix-client.js';
 import { RealmAuthClient } from './realm-auth-client.js';
+import { readFileForUpload } from './content-type.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import ignoreModule from 'ignore';
@@ -305,14 +306,14 @@ export abstract class RealmSyncBase {
       return;
     }
 
-    const content = fs.readFileSync(localPath, 'utf8');
+    const { content, contentType } = readFileForUpload(relativePath, localPath);
     const url = this.buildFileUrl(relativePath);
     const jwt = await this.realmAuthClient.getJWT();
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'text/plain;charset=UTF-8',
+        'Content-Type': contentType,
         Authorization: jwt,
         Accept: SupportedMimeType.CardSource,
       },

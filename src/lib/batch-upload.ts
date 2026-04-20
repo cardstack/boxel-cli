@@ -7,6 +7,44 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { getContentType, isTextFile, readFileForUpload } from './content-type.js';
+
+/**
+ * Binary files (images, fonts, archives, etc.) cannot be sent through the
+ * /_atomic JSON endpoint because their bytes don't survive UTF-8 encoding.
+ * Route them through individual POST uploads (which use octet-stream).
+ */
+function isBinaryFile(file: FileToUpload): boolean {
+  return !isTextFile(getContentType(file.relativePath));
+}
+
+const ATOMIC_SOURCE_EXTENSIONS = new Set([
+  '.gts',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.css',
+  '.scss',
+  '.less',
+  '.sass',
+  '.html',
+]);
+
+/**
+ * The /_atomic endpoint only accepts 'card' and 'source' resource types.
+ * Plain text files (.md, .txt, .csv, .yaml, etc.) are neither cards nor
+ * compilable source modules — the realm's module compiler rejects them as
+ * invalid source. Route them through individual POST uploads so they are
+ * stored as raw files with their correct Content-Type.
+ */
+function isAtomicIncompatible(file: FileToUpload): boolean {
+  if (file.relativePath.endsWith('.json')) return false;
+  const ext = path.extname(file.relativePath).toLowerCase();
+  return !ATOMIC_SOURCE_EXTENSIONS.has(ext);
+}
 
 // ANSI color codes
 const FG_GREEN = '\x1b[32m';
@@ -19,7 +57,7 @@ const RESET = '\x1b[0m';
 export interface FileToUpload {
   relativePath: string;
   localPath: string;
-  content?: string;
+  content?: string | Buffer;
   operation: 'add' | 'update';
 }
 
@@ -65,6 +103,23 @@ const DEFAULT_OPTIONS: BatchOptions = {
   verbose: false,
 };
 
+function getTextContent(file: FileToUpload): string {
+  if (typeof file.content === 'string') {
+    return file.content;
+  }
+  const content = fs.readFileSync(file.localPath, 'utf8');
+  file.content = content;
+  return content;
+}
+
+function getUploadPayload(file: FileToUpload): { content: string | Buffer; contentType: string } {
+  if (typeof file.content === 'string' || Buffer.isBuffer(file.content)) {
+    return { content: file.content, contentType: getContentType(file.relativePath) };
+  }
+
+  return readFileForUpload(file.relativePath, file.localPath);
+}
+
 // Verbose logging helper
 function verbose(opts: Partial<BatchOptions>, message: string, ...args: unknown[]): void {
   if (opts.verbose) {
@@ -73,17 +128,121 @@ function verbose(opts: Partial<BatchOptions>, message: string, ...args: unknown[
 }
 
 /**
- * Sort files so definitions (.gts) come before instances (.json)
+ * Sort files so definitions (.gts) come before instances (.json),
+ * and within .gts files, sort by dependency order (least dependent first).
+ *
+ * Dependency detection: scans import statements in .gts files to determine
+ * which files import others. Files with no local imports come first (FieldDefs,
+ * base types), then files that import those, etc.
  */
 export function sortDefinitionsFirst(files: FileToUpload[]): FileToUpload[] {
-  return [...files].sort((a, b) => {
-    const aIsDefinition = a.relativePath.endsWith('.gts');
-    const bIsDefinition = b.relativePath.endsWith('.gts');
+  const definitions = files.filter(f => f.relativePath.endsWith('.gts'));
+  const instances = files.filter(f => !f.relativePath.endsWith('.gts'));
 
-    if (aIsDefinition && !bIsDefinition) return -1;
-    if (!aIsDefinition && bIsDefinition) return 1;
-    return a.relativePath.localeCompare(b.relativePath);
-  });
+  // Build dependency graph for .gts files
+  const depOrder = sortByDependency(definitions);
+
+  // Definitions first (in dependency order), then instances alphabetically
+  return [
+    ...depOrder,
+    ...instances.sort((a, b) => a.relativePath.localeCompare(b.relativePath)),
+  ];
+}
+
+/**
+ * Sort .gts files by dependency order using topological sort.
+ * Files that import nothing local come first; files that import others come later.
+ */
+function sortByDependency(files: FileToUpload[]): FileToUpload[] {
+  // Map filename (without extension) to file
+  const byName = new Map<string, FileToUpload>();
+  for (const f of files) {
+    const name = path.basename(f.relativePath, '.gts');
+    byName.set(name, f);
+  }
+
+  // Parse imports to build adjacency list
+  const deps = new Map<string, Set<string>>();
+  for (const f of files) {
+    const name = path.basename(f.relativePath, '.gts');
+    const content =
+      typeof f.content === 'string'
+        ? f.content
+        : fs.existsSync(f.localPath)
+          ? fs.readFileSync(f.localPath, 'utf8')
+          : '';
+    if (content) {
+      f.content = content;
+    }
+
+    const localImports = new Set<string>();
+    // Match: import { X } from './name' or from './name.gts'
+    const importRegex = /from\s+['"]\.\/([^'"]+)['"]/g;
+    let match;
+    while ((match = importRegex.exec(content)) !== null) {
+      const imported = match[1].replace(/\.gts$/, '');
+      if (byName.has(imported)) {
+        localImports.add(imported);
+      }
+    }
+    deps.set(name, localImports);
+  }
+
+  // Topological sort (Kahn's algorithm)
+  const inDegree = new Map<string, number>();
+  for (const name of byName.keys()) inDegree.set(name, 0);
+  for (const [, depSet] of deps) {
+    for (const dep of depSet) {
+      inDegree.set(dep, (inDegree.get(dep) ?? 0) + 1);
+    }
+  }
+
+  // Note: we want files with NO dependents (leaf nodes) first
+  // Actually, we want files that nothing depends ON first (no incoming edges
+  // in the "is imported by" graph), which means files that import nothing.
+  // Kahn's on the dependency graph: start with nodes that have no dependencies.
+  const inDeg = new Map<string, number>();
+  for (const name of byName.keys()) inDeg.set(name, 0);
+  for (const [name, depSet] of deps) {
+    inDeg.set(name, depSet.size);
+  }
+
+  const queue: string[] = [];
+  for (const [name, deg] of inDeg) {
+    if (deg === 0) queue.push(name);
+  }
+
+  const sorted: FileToUpload[] = [];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    queue.sort(); // deterministic order
+    const name = queue.shift()!;
+    if (visited.has(name)) continue;
+    visited.add(name);
+
+    const file = byName.get(name);
+    if (file) sorted.push(file);
+
+    // Find files that depend on this one and decrement their in-degree
+    for (const [other, depSet] of deps) {
+      if (depSet.has(name)) {
+        const newDeg = (inDeg.get(other) ?? 1) - 1;
+        inDeg.set(other, newDeg);
+        if (newDeg === 0 && !visited.has(other)) {
+          queue.push(other);
+        }
+      }
+    }
+  }
+
+  // Add any remaining files (circular deps)
+  for (const f of files) {
+    const name = path.basename(f.relativePath, '.gts');
+    if (!visited.has(name)) sorted.push(f);
+  }
+
+  return sorted;
 }
 
 /**
@@ -99,9 +258,8 @@ export function createBatches(
   const maxPayloadBytes = options.maxPayloadKB * 1024;
 
   for (const file of files) {
-    const content = file.content || fs.readFileSync(file.localPath, 'utf8');
+    const content = getTextContent(file);
     const fileSize = Buffer.byteLength(content, 'utf8');
-    file.content = content; // Cache for later use
 
     // If single file exceeds max payload, give it its own batch
     if (fileSize > maxPayloadBytes) {
@@ -146,7 +304,7 @@ export function buildAtomicRequest(
   realmUrl: string
 ): AtomicRequest {
   const operations: AtomicOperation[] = files.map(file => {
-    const content = file.content || fs.readFileSync(file.localPath, 'utf8');
+    const content = getTextContent(file);
     const isCard = file.relativePath.endsWith('.json');
 
     if (isCard) {
@@ -171,7 +329,7 @@ export function buildAtomicRequest(
           op: file.operation,
           href: `${realmUrl}${file.relativePath}`,
           data: {
-            type: 'file',
+            type: 'source',
             attributes: {
               content: content,
             },
@@ -179,7 +337,9 @@ export function buildAtomicRequest(
         };
       }
     } else {
-      // For source files (.gts, etc.), send as content
+      // For source code (.gts, .ts, .css, .html, etc.), send as source module.
+      // Non-source-code text files are filtered out of the atomic batch by
+      // isAtomicIncompatible() and uploaded via individual POST instead.
       return {
         op: file.operation,
         href: `${realmUrl}${file.relativePath}`,
@@ -326,25 +486,32 @@ export async function uploadSingleFile(
     };
   }
 
-  const content = file.content || fs.readFileSync(file.localPath, 'utf8');
+  const { content, contentType } = getUploadPayload(file);
   const url = `${realmUrl}${file.relativePath}`;
+
+  // Accept: compilable source types expect 'application/vnd.card+source' back
+  // from the realm; binary + plain-text files want the raw bytes returned as-is.
+  const acceptHeader = isTextFile(contentType) && !isAtomicIncompatible(file)
+    ? 'application/vnd.card+source'
+    : '*/*';
 
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'text/plain;charset=UTF-8',
+        'Content-Type': contentType,
         'Authorization': jwt,
-        'Accept': 'application/vnd.card+source',
+        'Accept': acceptHeader,
       },
       body: content,
     });
 
     if (!response.ok) {
+      const body = await response.text().catch(() => '');
       return {
         success: false,
         filesUploaded: 0,
-        errors: [{ path: file.relativePath, error: `HTTP ${response.status}` }],
+        errors: [{ path: file.relativePath, error: `HTTP ${response.status}: ${body.slice(0, 200)}` }],
         timeMs: Date.now() - startTime,
       };
     }
@@ -389,11 +556,21 @@ export async function uploadWithBatching(
   verbose(opts, `uploadWithBatching called with ${files.length} files`);
   verbose(opts, `Options: batchSize=${opts.batchSize}, definitionsFirst=${opts.definitionsFirst}, quiet=${opts.quiet}`);
 
+  // Split out files that cannot go through /_atomic:
+  //   - binary files (bytes don't survive UTF-8 stringification)
+  //   - plain text files like .md/.txt/.csv (not valid source modules,
+  //     rejected by the realm's module compiler)
+  // Both kinds route through individual POST uploads with their correct
+  // Content-Type so the server stores them as raw files.
+  const individualFiles = files.filter(f => isBinaryFile(f) || isAtomicIncompatible(f));
+  const textFiles = files.filter(f => !isBinaryFile(f) && !isAtomicIncompatible(f));
+  verbose(opts, `Split: ${textFiles.length} atomic-compatible, ${individualFiles.length} individual`);
+
   // Sort definitions first if requested
-  let sortedFiles = opts.definitionsFirst ? sortDefinitionsFirst(files) : files;
+  let sortedFiles = opts.definitionsFirst ? sortDefinitionsFirst(textFiles) : textFiles;
   verbose(opts, `After sorting: ${sortedFiles.map(f => f.relativePath).join(', ')}`);
 
-  // Create batches
+  // Create batches (text only)
   const batches = createBatches(sortedFiles, opts);
   verbose(opts, `Created ${batches.length} batches`);
 
@@ -404,11 +581,33 @@ export async function uploadWithBatching(
 
   if (!opts.quiet) {
     const totalSize = sortedFiles.reduce((sum, f) => {
-      const content = f.content || fs.readFileSync(f.localPath, 'utf8');
-      f.content = content;
+      const content = getTextContent(f);
       return sum + Buffer.byteLength(content, 'utf8');
     }, 0);
-    log(`\n${FG_CYAN}Uploading ${files.length} files in ${batches.length} batch(es)${RESET} ${DIM}(${Math.round(totalSize / 1024)}KB total)${RESET}`);
+    const individualNote = individualFiles.length > 0
+      ? ` ${DIM}+ ${individualFiles.length} file(s) individually${RESET}`
+      : '';
+    log(`\n${FG_CYAN}Uploading ${textFiles.length} files in ${batches.length} batch(es)${RESET} ${DIM}(${Math.round(totalSize / 1024)}KB total)${RESET}${individualNote}`);
+  }
+
+  // Upload individual files first — binary files are typically referenced
+  // by cards (e.g. Product → image links), and plain text files (.md etc.)
+  // are not sources the realm indexes.
+  for (const file of individualFiles) {
+    const singleResult = await uploadSingleFile(file, realmUrl, jwt, opts);
+    if (singleResult.success) {
+      totalUploaded++;
+      if (!opts.quiet) {
+        const tag = isBinaryFile(file) ? 'binary' : 'file';
+        log(`  ${FG_GREEN}✓${RESET} ${file.relativePath} ${DIM}(${tag}, ${singleResult.timeMs}ms)${RESET}`);
+      }
+    } else {
+      totalFailed++;
+      allErrors.push(...singleResult.errors);
+      if (!opts.quiet) {
+        log(`  ${FG_RED}✗${RESET} ${file.relativePath}: ${singleResult.errors[0]?.error}`);
+      }
+    }
   }
 
   for (let i = 0; i < batches.length; i++) {

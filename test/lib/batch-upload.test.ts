@@ -258,6 +258,74 @@ describe('buildAtomicRequest', () => {
   });
 });
 
+describe('uploadSingleFile', () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('uploads jpg files as binary with octet-stream content type', async () => {
+    const localPath = path.join(tmpDir, 'image.jpg');
+    const jpgBytes = Buffer.from([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46,
+      0x49, 0x46, 0x00, 0x01, 0xff, 0xd9,
+    ]);
+    fs.writeFileSync(localPath, jpgBytes);
+
+    let capturedBody: unknown;
+    let capturedHeaders: Headers | undefined;
+
+    globalThis.fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      capturedBody = init?.body;
+      capturedHeaders = new Headers(init?.headers);
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+
+    const result = await uploadSingleFile(
+      { relativePath: 'Product/images/image.jpg', localPath, operation: 'add' },
+      'https://realm.test/',
+      'test-jwt',
+    );
+
+    expect(result.success).toBe(true);
+    expect(capturedHeaders?.get('Content-Type')).toBe('application/octet-stream');
+    expect(capturedHeaders?.get('Accept')).toBe('*/*');
+    expect(Buffer.isBuffer(capturedBody)).toBe(true);
+    expect(Buffer.from(capturedBody as Buffer)).toEqual(jpgBytes);
+  });
+
+  it('uploads csv files as text with text/csv content type', async () => {
+    const localPath = path.join(tmpDir, 'report.csv');
+    const csv = 'name,count\nnorthwind,77\n';
+    fs.writeFileSync(localPath, csv);
+
+    let capturedBody: unknown;
+    let capturedHeaders: Headers | undefined;
+
+    globalThis.fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      capturedBody = init?.body;
+      capturedHeaders = new Headers(init?.headers);
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+
+    const result = await uploadSingleFile(
+      { relativePath: 'reports/report.csv', localPath, operation: 'add' },
+      'https://realm.test/',
+      'test-jwt',
+    );
+
+    expect(result.success).toBe(true);
+    expect(capturedHeaders?.get('Content-Type')).toBe('text/csv');
+    expect(typeof capturedBody).toBe('string');
+    expect(capturedBody).toBe(csv);
+  });
+});
+
 describe('uploadBatch', () => {
   let originalFetch: typeof fetch;
 
