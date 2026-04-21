@@ -8,6 +8,27 @@ import {
   getEnvironmentShortLabel,
   getUsernameFromMatrixId,
 } from '../lib/profile-manager.js';
+import { MatrixClient } from '../lib/matrix-client.js';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function resolveMatrixIdFromEmail(
+  matrixUrl: string,
+  email: string,
+  password: string,
+): Promise<string> {
+  const client = new MatrixClient({
+    matrixURL: new URL(matrixUrl),
+    username: email,
+    password,
+  });
+  await client.login();
+  const userId = client.getUserId();
+  if (!userId) {
+    throw new Error('Login succeeded but returned no user_id');
+  }
+  return userId;
+}
 
 import {
   FG_GREEN,
@@ -88,6 +109,7 @@ export interface ProfileCommandOptions {
   user?: string;
   password?: string;
   name?: string;
+  env?: string;
 }
 
 export async function profileCommand(
@@ -107,7 +129,13 @@ export async function profileCommand(
       const password = options?.password || process.env.BOXEL_PASSWORD;
       if (options?.user && password) {
         // Non-interactive add
-        await addProfileNonInteractive(manager, options.user, password, options.name);
+        await addProfileNonInteractive(
+          manager,
+          options.user,
+          password,
+          options.name,
+          options.env,
+        );
       } else {
         await addProfile(manager);
       }
@@ -200,17 +228,45 @@ async function addProfile(manager: ProfileManager): Promise<void> {
     ? 'https://app.boxel.ai/'
     : 'https://realms-staging.stack.cards/';
 
-  // Get username
-  console.log(`\nEnter your Boxel username (without @ or domain)`);
-  console.log(`${DIM}Example: ctse, aallen90${RESET}`);
-  const username = await prompt('Username: ');
+  // Get username or email
+  console.log(`\nEnter your Boxel username or email`);
+  console.log(`${DIM}Examples: ctse, aallen90, user@example.com${RESET}`);
+  const loginInput = await prompt('Username or email: ');
 
-  if (!username) {
-    console.error(`${FG_RED}Error:${RESET} Username is required.`);
+  if (!loginInput) {
+    console.error(`${FG_RED}Error:${RESET} Username or email is required.`);
     process.exit(1);
   }
 
-  const matrixId = `@${username}:${domain}`;
+  const isEmail = EMAIL_REGEX.test(loginInput);
+
+  // Get password
+  const password = await promptPassword('Password: ');
+
+  if (!password) {
+    console.error(`${FG_RED}Error:${RESET} Password is required.`);
+    process.exit(1);
+  }
+
+  // Resolve the canonical @handle:domain. For emails we have to ask the
+  // homeserver — the 3PID login response tells us the real user_id.
+  let matrixId: string;
+  let username: string;
+  if (isEmail) {
+    console.log(`${DIM}Looking up Matrix handle for ${loginInput}...${RESET}`);
+    try {
+      matrixId = await resolveMatrixIdFromEmail(defaultMatrixUrl, loginInput, password);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`${FG_RED}Error:${RESET} Email login failed: ${message}`);
+      process.exit(1);
+    }
+    username = getUsernameFromMatrixId(matrixId);
+    console.log(`${DIM}Resolved to ${matrixId}${RESET}`);
+  } else {
+    username = loginInput;
+    matrixId = `@${username}:${domain}`;
+  }
 
   // Check if already exists
   if (manager.getProfile(matrixId)) {
@@ -220,14 +276,6 @@ async function addProfile(manager: ProfileManager): Promise<void> {
       console.log('Cancelled.');
       return;
     }
-  }
-
-  // Get password
-  const password = await promptPassword('Password: ');
-
-  if (!password) {
-    console.error(`${FG_RED}Error:${RESET} Password is required.`);
-    process.exit(1);
   }
 
   // Optional display name
@@ -319,14 +367,54 @@ async function removeProfile(manager: ProfileManager, profileId: string): Promis
 
 async function addProfileNonInteractive(
   manager: ProfileManager,
-  matrixId: string,
+  userInput: string,
   password: string,
-  displayName?: string
+  displayName?: string,
+  env?: string,
 ): Promise<void> {
-  // Validate matrix ID format
-  if (!matrixId.startsWith('@') || !matrixId.includes(':')) {
-    console.error(`${FG_RED}Error:${RESET} Invalid Matrix ID format. Expected @user:domain`);
-    process.exit(1);
+  // Three accepted shapes for `userInput`:
+  //   - Matrix ID:   @ctse:stack.cards   (domain carries the env)
+  //   - Email:       user@example.com    (requires --env to pick homeserver)
+  //   - Bare handle: ctse                (requires --env for domain)
+  let matrixId: string;
+  let matrixUrl: string | undefined;
+  let realmServerUrl: string | undefined;
+
+  const isMatrixId = userInput.startsWith('@') && userInput.includes(':');
+  const isEmail = !isMatrixId && EMAIL_REGEX.test(userInput);
+
+  if (isMatrixId) {
+    matrixId = userInput;
+  } else {
+    // Need an env hint to pick homeserver + domain
+    const normalized = env?.toLowerCase();
+    let domain: string;
+    if (normalized === 'production' || normalized === 'boxel.ai') {
+      domain = 'boxel.ai';
+      matrixUrl = 'https://matrix.boxel.ai';
+      realmServerUrl = 'https://app.boxel.ai/';
+    } else if (normalized === 'staging' || normalized === 'stack.cards') {
+      domain = 'stack.cards';
+      matrixUrl = 'https://matrix-staging.stack.cards';
+      realmServerUrl = 'https://realms-staging.stack.cards/';
+    } else {
+      console.error(
+        `${FG_RED}Error:${RESET} When -u is an email or bare handle, --env must be "staging" or "production".`,
+      );
+      process.exit(1);
+    }
+
+    if (isEmail) {
+      try {
+        matrixId = await resolveMatrixIdFromEmail(matrixUrl, userInput, password);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`${FG_RED}Error:${RESET} Email login failed: ${message}`);
+        process.exit(1);
+      }
+    } else {
+      matrixId = `@${userInput}:${domain}`;
+    }
   }
 
   // Check if already exists
@@ -340,7 +428,7 @@ async function addProfileNonInteractive(
     return;
   }
 
-  await manager.addProfile(matrixId, password, displayName);
+  await manager.addProfile(matrixId, password, displayName, matrixUrl, realmServerUrl);
   console.log(`${FG_GREEN}✓${RESET} Profile created: ${formatProfileBadge(matrixId)}`);
 
   const activeId = manager.getActiveProfileId();

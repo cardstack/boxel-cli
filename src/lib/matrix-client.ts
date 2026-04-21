@@ -90,15 +90,21 @@ export class MatrixClient {
       );
     }
 
+    // Accept either a Matrix handle ("ctse") or an email ("user@example.com").
+    // Emails are looked up via the homeserver's 3PID mapping (`m.id.thirdparty`);
+    // the response's `user_id` yields the canonical `@handle:domain` that the
+    // caller can store for subsequent handle-based logins.
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.username);
+    const identifier = isEmail
+      ? { type: 'm.id.thirdparty', medium: 'email', address: this.username }
+      : { type: 'm.id.user', user: this.username };
+
     const response = await this.request(
       '_matrix/client/v3/login',
       'POST',
       {
         body: JSON.stringify({
-          identifier: {
-            type: 'm.id.user',
-            user: this.username,
-          },
+          identifier,
           password,
           type: 'm.login.password',
         }),

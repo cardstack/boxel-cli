@@ -546,10 +546,11 @@ program
   .description('Manage saved profiles for different users/environments')
   .argument('[subcommand]', 'list | add | switch | remove | migrate')
   .argument('[arg]', 'Profile ID (for switch/remove)')
-  .option('-u, --user <matrixId>', 'Matrix user ID (e.g., @user:boxel.ai)')
+  .option('-u, --user <user>', 'Matrix ID (@user:domain), email, or bare handle')
   .option('-p, --password <password>', 'Password (for add command)')
   .option('-n, --name <displayName>', 'Display name (for add command)')
-  .action(async (subcommand?: string, arg?: string, options?: { user?: string; password?: string; name?: string }) => {
+  .option('--env <env>', 'Environment: "staging" or "production" (required with -u for email or bare handle)')
+  .action(async (subcommand?: string, arg?: string, options?: { user?: string; password?: string; name?: string; env?: string }) => {
     if (options?.password) {
       console.warn(
         'Warning: Supplying a password via -p/--password may expose it in shell history and process listings. ' +
