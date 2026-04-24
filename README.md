@@ -319,6 +319,53 @@ boxel check ./file.json           # Inspect file sync state
 boxel check ./file.json --sync    # Auto-sync if needed
 ```
 
+### Card CRUD (direct realm API, no sync manifest)
+
+`boxel card` talks directly to the realm's card API (POST / PATCH /
+DELETE / GET / `_search` / `_atomic`). Unlike `sync` / `push` / `touch`,
+these commands never touch the local filesystem or sync manifest —
+good for ephemeral mutations, scripted workflows, and agents.
+
+```bash
+# Read / write a single card instance
+boxel card get    <realm> Note/n1                     # GET  /Note/n1 (vnd.card+json)
+boxel card create <realm> Note --lid n1 --file b.json # POST /Note/
+boxel card patch  <realm> Note/n1 --data '{"data":{"type":"card","attributes":{"title":"New"},"meta":{"adoptsFrom":{"module":"../note","name":"Note"}}}}'
+boxel card delete <realm> Note/n1                     # DELETE /Note/n1
+
+# Query via Boxel's filter language (POST /_search)
+boxel card search <realm> --type '<module>#Name'                    # all cards of a type
+boxel card search <realm> --on '<module>#Name' --eq 'status=active' # field equality
+boxel card search <realm> --on '<module>#Name' --gt 'price=100' \
+                                                --lte 'price=500'     # range
+boxel card search <realm> --on '<module>#Name' --in 'tag=a,b,c'      # value in array
+boxel card search <realm> --on '<module>#Name' --contains 'title=Matrix'
+boxel card search <realm> --type '<module>#Name' --ids              # just card ids, one per line
+boxel card search <realm> --type '<module>#Name' --count            # total count
+boxel card search <realm> --file query.json                         # full Query JSON from file
+
+# Batch operations
+boxel card atomic <realm> --file ops.json   # POST /_atomic
+
+# Direct-curl escape hatch
+boxel card token <realm>                      # print JWT
+eval $(boxel card token <realm> --shell)      # → REALM=... JWT=...
+```
+
+**CodeRef syntax** (`--type`, `--on`, `--sort-on`): `<module-url>#<ClassName>`, e.g.
+`./presence#Presence` (relative) or `https://realms.example.com/m/presence#Presence`
+(absolute). Everything after the LAST `#` is the class name.
+
+**Flag values** are auto-JSON-parsed: `--eq 'n=42'` → number, `--eq 'b=true'` → boolean,
+`--eq 'x=null'` → null, `--eq 'name=Acme'` → string fallback. Use JSON-quoted form
+(`--eq 's="Acme"'`) to force a string that would otherwise look numeric.
+
+**When to use what:**
+- `sync` / `push` / `touch` — bulk file operations, use the CLI's sync manifest
+- `card *` — single-shot mutations via the card API, no manifest tracking
+- Live realm subscribers (web UI, live `getCards` queries) see every mutation within
+  a couple of seconds via Matrix pubsub — either path propagates equally fast.
+
 ### Workspace Management
 
 ```bash

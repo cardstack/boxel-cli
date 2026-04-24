@@ -3,13 +3,29 @@
 import 'dotenv/config';
 import { Command, InvalidArgumentError } from 'commander';
 
+// Digits-only regex rejects "1.5", "1e2", "1abc", "", whitespace — anything
+// parseInt() would silently swallow. Used for CLI flags where we want
+// "expected an integer" to mean exactly that.
+const INT_RE = /^\d+$/;
+
 /** Parse a positive integer from a CLI flag; throw a friendly error otherwise. */
 function parsePositiveInt(raw: string, _prev: unknown): number {
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1) {
+  if (!INT_RE.test(raw)) {
+    throw new InvalidArgumentError(`expected a positive integer, got "${raw}"`);
+  }
+  const n = Number(raw);
+  if (n < 1) {
     throw new InvalidArgumentError(`expected a positive integer, got "${raw}"`);
   }
   return n;
+}
+
+/** Parse a non-negative integer (0+) from a CLI flag. */
+function parseNonNegativeInt(raw: string, _prev: unknown): number {
+  if (!INT_RE.test(raw)) {
+    throw new InvalidArgumentError(`expected a non-negative integer, got "${raw}"`);
+  }
+  return Number(raw);
 }
 
 import { pushCommand } from './commands/push.js';
@@ -26,6 +42,15 @@ import { trackCommand } from './commands/track.js';
 import { stopCommand } from './commands/stop.js';
 import { skillsCommand } from './commands/skills.js';
 import { touchCommand } from './commands/touch.js';
+import {
+  cardCreateCommand,
+  cardPatchCommand,
+  cardDeleteCommand,
+  cardGetCommand,
+  cardSearchCommand,
+  cardAtomicCommand,
+  cardTokenCommand,
+} from './commands/card.js';
 import { editCommand } from './commands/edit.js';
 import { milestoneCommand } from './commands/milestone.js';
 import { shareCommand } from './commands/share.js';
@@ -283,6 +308,116 @@ program
   .option('--dry-run', 'Show what would be done without making changes')
   .action(async (workspace: string | undefined, files: string[], options: { all?: boolean; dryRun?: boolean }) => {
     await touchCommand(workspace || '.', files || [], options);
+  });
+
+// ─────────────────────────────────────────────────────────────────────
+// `boxel card` — direct card CRUD via the realm API. Bypasses sync,
+// manifest, filesystem, and git. Good for ephemeral / scripted writes.
+// ─────────────────────────────────────────────────────────────────────
+const cardGroup = program
+  .command('card')
+  .description('Direct card CRUD via the realm API (no sync, no filesystem)');
+
+cardGroup
+  .command('create')
+  .description('Create a card in a type folder (POST /<folder>/)')
+  .argument('<realm>', 'Realm ref: . | @user/workspace | https://...')
+  .argument('<folder>', 'Card type folder (e.g., "Annotation")')
+  .option('-f, --file <path>', 'Read JSON:API body from file')
+  .option('-d, --data <json>', 'Inline JSON:API body')
+  .option('-s, --stdin', 'Read JSON:API body from stdin')
+  .option('--lid <id>', 'Local id (becomes the filename — otherwise server generates UUID)')
+  .option('-o, --output <path>', 'Write response body to file instead of stdout')
+  .option('-q, --quiet', 'Suppress non-essential output')
+  .action(async (realm: string, folder: string, options: any) => {
+    await cardCreateCommand(realm, folder, options);
+  });
+
+cardGroup
+  .command('patch')
+  .description('Partial update (PATCH /<path>) — send only the fields that change')
+  .argument('<realm>', 'Realm ref: . | @user/workspace | https://...')
+  .argument('<card-path>', 'Card path without .json (e.g., "Annotation/presence-abc")')
+  .option('-f, --file <path>', 'Read JSON:API body from file')
+  .option('-d, --data <json>', 'Inline JSON:API body')
+  .option('-s, --stdin', 'Read JSON:API body from stdin')
+  .option('-o, --output <path>', 'Write response body to file instead of stdout')
+  .option('-q, --quiet', 'Suppress non-essential output')
+  .action(async (realm: string, cardPath: string, options: any) => {
+    await cardPatchCommand(realm, cardPath, options);
+  });
+
+cardGroup
+  .command('delete')
+  .description('Delete a card (DELETE /<path>)')
+  .argument('<realm>', 'Realm ref: . | @user/workspace | https://...')
+  .argument('<card-path>', 'Card path without .json (e.g., "Annotation/presence-abc")')
+  .option('-q, --quiet', 'Suppress non-essential output')
+  .action(async (realm: string, cardPath: string, options: any) => {
+    await cardDeleteCommand(realm, cardPath, options);
+  });
+
+cardGroup
+  .command('get')
+  .description('Read a card (GET /<path> as vnd.card+json)')
+  .argument('<realm>', 'Realm ref: . | @user/workspace | https://...')
+  .argument('<card-path>', 'Card path without .json')
+  .option('-o, --output <path>', 'Write body to file instead of stdout')
+  .option('-q, --quiet', 'Suppress non-essential output')
+  .action(async (realm: string, cardPath: string, options: any) => {
+    await cardGetCommand(realm, cardPath, options);
+  });
+
+cardGroup
+  .command('search')
+  .description('Query cards via Boxel filter language (POST /_search with X-HTTP-Method-Override: QUERY)')
+  .argument('<realm>', 'Realm ref: . | @user/workspace | https://...')
+  .option('--type <coderef>', "CardTypeFilter: 'module-url#Name' (e.g., 'https://realms.example.com/presence#Presence')")
+  .option('--on <coderef>', "Scope for eq/in/contains/range: 'module-url#Name'")
+  .option('--eq <kv...>', "Equality: repeatable 'field=value'. Values auto-JSON-parsed (42, true, \"str\", null)")
+  .option('--in <kv...>', "Value in array: repeatable 'field=v1,v2,v3'")
+  .option('--contains <kv...>', "Substring match: repeatable 'field=substring'")
+  .option('--gt <kv...>', "Range gt: repeatable 'field=value'")
+  .option('--gte <kv...>', "Range gte: repeatable 'field=value'")
+  .option('--lt <kv...>', "Range lt: repeatable 'field=value'")
+  .option('--lte <kv...>', "Range lte: repeatable 'field=value'")
+  .option('--sort <spec...>', "Sort: repeatable 'field:asc' or 'field:desc'")
+  .option('--sort-on <coderef>', "Scope for sort fields: 'module-url#Name'")
+  .option('--page-size <n>', 'Page size', parsePositiveInt)
+  .option('--page-number <n>', 'Page number (0-based)', parseNonNegativeInt)
+  .option('-f, --file <path>', 'Read entire Query JSON from file (bypasses flag composer)')
+  .option('-d, --data <json>', 'Inline Query JSON')
+  .option('-s, --stdin', 'Read Query JSON from stdin')
+  .option('--ids', 'Print only card ids, one per line (pipe-friendly)')
+  .option('--count', 'Print only the total count')
+  .option('--curl', 'Print runnable curl command (with JWT) and exit (do not fetch)')
+  .option('-o, --output <path>', 'Write response body to file instead of stdout')
+  .option('-q, --quiet', 'Suppress non-essential output')
+  .action(async (realm: string, options: any) => {
+    await cardSearchCommand(realm, options);
+  });
+
+cardGroup
+  .command('atomic')
+  .description('Batch add/update/remove via POST /_atomic (JSON:API)')
+  .argument('<realm>', 'Realm ref: . | @user/workspace | https://...')
+  .option('-f, --file <path>', "Read atomic:operations body from file")
+  .option('-d, --data <json>', "Inline atomic:operations body")
+  .option('-s, --stdin', "Read body from stdin")
+  .option('-o, --output <path>', 'Write response body to file instead of stdout')
+  .option('-q, --quiet', 'Suppress non-essential output')
+  .action(async (realm: string, options: any) => {
+    await cardAtomicCommand(realm, options);
+  });
+
+cardGroup
+  .command('token')
+  .description('Print JWT for the realm (for direct curl usage)')
+  .argument('<realm>', 'Realm ref: . | @user/workspace | https://...')
+  .option('-s, --shell', 'Output as shell-evalable: REALM=... JWT=...')
+  .option('-q, --quiet', 'Suppress non-essential output')
+  .action(async (realm: string, options: any) => {
+    await cardTokenCommand(realm, options);
   });
 
 program
@@ -626,4 +761,11 @@ Examples:
   boxel profile migrate            Import credentials from .env
 `);
 
-program.parse();
+program.parseAsync().catch((err) => {
+  // Surface a clean one-line error instead of a raw unhandled rejection
+  // stack. Individual commands may still call process.exit(1) themselves
+  // on recoverable failures; this catches only what they didn't handle.
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(msg);
+  process.exit(1);
+});

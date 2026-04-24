@@ -307,6 +307,125 @@ boxel pull <url> ./local          # One-way pull
 boxel push ./local <url>          # One-way push
 ```
 
+### Card CRUD — Direct Realm API
+
+Use `boxel card *` when you need to mutate or query a single card via
+the realm API directly, WITHOUT touching the sync manifest or local
+filesystem. Useful for:
+- Scripted agent workflows (ephemeral writes, heartbeats)
+- One-off admin ops that shouldn't leave files on disk
+- Querying the realm without pulling all the matching cards locally
+
+```bash
+boxel card get    <realm> <card-path>                # GET  /<path>
+boxel card create <realm> <folder> [--lid <id>] [--file|-d|-s]
+boxel card patch  <realm> <card-path>       [--file|-d|-s]  # PARTIAL update
+boxel card delete <realm> <card-path>
+boxel card search <realm> [filter flags]             # Boxel query language
+boxel card atomic <realm> [--file|-d|-s]             # POST /_atomic batch
+boxel card token  <realm> [--shell]                  # print JWT for curl
+```
+
+**Realm ref** can be `.` (resolve from current workspace's `.boxel-sync.json`),
+`@user/workspace` (resolve via Matrix), or a full `https://...` URL.
+
+**Body input** (for create/patch/atomic/search): `-f <path>` / `-d '<json>'` / `-s` (stdin).
+
+**Response** — body to stdout, status + realm messages to stderr. Pipe into `jq` freely.
+
+#### `boxel card search` — Boxel query language
+
+Speaks the full Boxel filter language against `_search`:
+`type`, `eq`, `in`, `contains`, `range` (gt/gte/lt/lte), plus `sort`, `page`.
+Common cases are flags; complex filters (`any`, `not`, nested) go via `--file` / `--stdin`.
+
+```bash
+# All cards of a type
+boxel card search <realm> --type '<module-url>#ClassName' --ids
+
+# Active only (eq scoped to the type via --on)
+boxel card search <realm> \
+  --on '<module-url>#ClassName' --eq 'status=active' --ids
+
+# Range + value-in-array
+boxel card search <realm> --on '<type>' --gt 'total=100' --lte 'total=500'
+boxel card search <realm> --on '<type>' --in 'status=active,idle'
+
+# Substring (contains), count, sort
+boxel card search <realm> --on '<type>' --contains 'headline=migration'
+boxel card search <realm> --type '<type>' --count
+boxel card search <realm> --type '<type>' --sort 'lastActiveAt:desc' --page-size 10
+
+# Raw JSON (any / not / nested filters)
+boxel card search <realm> --file complex-query.json
+```
+
+**CodeRef syntax**: `<module-url>#<ClassName>`, split on the LAST `#`. Both
+relative (`./presence#Presence`) and absolute (`https://.../presence#Presence`)
+work.
+
+**Value parsing**: flag values are auto JSON-parsed — `--eq 'n=42'` → number,
+`--eq 'b=true'` → boolean, `--eq 'x=null'` → null. Bare strings fall back to
+raw strings. Force string with JSON quotes: `--eq 's="42"'`.
+
+**Output helpers**: `--ids` (one id per line, pipe-friendly), `--count` (just
+the total), `--curl` (print a runnable `curl` command — including JWT — without fetching).
+
+#### `boxel card patch` — partial update
+
+PATCH sends only the fields in the body; every other field is preserved.
+Perfect for heartbeats, status flips, anything where most of the card
+should stay untouched.
+
+```bash
+# Heartbeat — bump lastActiveAt only
+echo '{"data":{"type":"card","attributes":{"lastActiveAt":"2026-04-21T07:00:00Z"},
+  "meta":{"adoptsFrom":{"module":"../presence","name":"Presence"}}}}' \
+  | boxel card patch <realm> Presence/claude --stdin --quiet
+```
+
+#### `boxel card atomic` — batch ops
+
+POST `/_atomic` with a JSON:API operations envelope. Each op is
+`{op: 'add'|'update'|'remove', href: '<relative-path>', data?: {...}}`.
+Transactional — all succeed or all fail.
+
+```json
+{
+  "atomic:operations": [
+    { "op": "add",    "href": "./Note/n1.json", "data": { ... } },
+    { "op": "update", "href": "./Note/n2.json", "data": { ... } },
+    { "op": "remove", "href": "./Note/n3.json" }
+  ]
+}
+```
+
+#### `boxel card token` — direct-curl escape hatch
+
+Prints the realm JWT so scripts can use raw `curl` / `fetch` without paying
+per-call CLI startup.
+
+```bash
+eval $(boxel card token <realm> --shell --quiet)
+curl -X PATCH "${REALM}Presence/claude" \
+  -H "Authorization: ${JWT}" \
+  -H "Accept: application/vnd.card+json" \
+  -H "Content-Type: application/vnd.card+json" \
+  -d '{"data":{...}}'
+```
+
+#### When to use `card` vs `sync`
+
+| Use case | Command |
+|---|---|
+| Push many local file edits | `sync --prefer-local` |
+| Pull remote changes | `sync` / `pull` |
+| Force re-index | `touch <path>` |
+| One-shot mutation (heartbeat, status flip, admin) | `card patch` / `card create` |
+| Find cards matching a filter | `card search` |
+| Batch seed / migration | `card atomic` |
+| Long-running script needing real-time writes | `card *` (auth once, reuse JWT) |
+
 ### Share & Gather (GitHub Workflow)
 ```bash
 boxel share . -t /path/to/repo -b branch-name --no-pr   # Share to GitHub repo
@@ -495,12 +614,18 @@ boxel edit . --done                   # Release all locks
 **Why:** Watch mode pulls remote changes which can overwrite local edits. Edit lock tells watch to skip those files.
 
 ### 0.5. Touch Instance After Remote .gts Update
-When you update a `.gts` card definition file remotely (via sync/push), touch an instance file to force re-indexing:
+When you update a `.gts` card definition file remotely (via sync/push), touch **one specific instance** of that card type to force re-indexing:
 ```bash
-boxel touch . CardName/instance.json  # Touch specific instance
-boxel touch .                         # Or touch all files
+boxel touch . CardName/instance.json  # Touch ONE instance — this is enough
 ```
-**Why:** The realm server may not re-index the definition until an instance using it is touched.
+
+**IMPORTANT — do NOT touch everything.** `boxel touch .` (no path) retouches every file in the workspace, which is wasteful (potentially hundreds of files) and pollutes sync history with bulk `_touched` changes. Always specify the single instance that exercises the changed definition.
+
+- Changed `my-card.gts` → `boxel touch . MyCard/any-one-instance.json`
+- Changed a field type in `regime-guide.gts` → touch one `AnnotationCard` instance, not all of them
+- If you don't know which instance, pick any existing one under the matching `CardName/` folder
+
+**Why:** The realm server re-indexes a definition when any instance referencing it is touched. One touch propagates to all other instances of that type.
 
 ### 1. Stop Watch Before Restore
 Watch will re-pull deleted files if running during restore:
