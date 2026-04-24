@@ -3,10 +3,18 @@
 import 'dotenv/config';
 import { Command, InvalidArgumentError } from 'commander';
 
+// Digits-only regex rejects "1.5", "1e2", "1abc", "", whitespace — anything
+// parseInt() would silently swallow. Used for CLI flags where we want
+// "expected an integer" to mean exactly that.
+const INT_RE = /^\d+$/;
+
 /** Parse a positive integer from a CLI flag; throw a friendly error otherwise. */
 function parsePositiveInt(raw: string, _prev: unknown): number {
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1) {
+  if (!INT_RE.test(raw)) {
+    throw new InvalidArgumentError(`expected a positive integer, got "${raw}"`);
+  }
+  const n = Number(raw);
+  if (n < 1) {
     throw new InvalidArgumentError(`expected a positive integer, got "${raw}"`);
   }
   return n;
@@ -14,11 +22,10 @@ function parsePositiveInt(raw: string, _prev: unknown): number {
 
 /** Parse a non-negative integer (0+) from a CLI flag. */
 function parseNonNegativeInt(raw: string, _prev: unknown): number {
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 0) {
+  if (!INT_RE.test(raw)) {
     throw new InvalidArgumentError(`expected a non-negative integer, got "${raw}"`);
   }
-  return n;
+  return Number(raw);
 }
 
 import { pushCommand } from './commands/push.js';

@@ -204,6 +204,10 @@ export async function cardDeleteCommand(
     },
   });
   if (res.status === 204 || res.ok) {
+    // Drain the body so the underlying connection is released; some
+    // realms return 200 with a body on delete. We don't surface it —
+    // delete is a fire-and-forget from the CLI's perspective.
+    await res.arrayBuffer();
     if (!options.quiet) console.error(`Deleted ${cardPath} (${res.status})`);
     return;
   }
