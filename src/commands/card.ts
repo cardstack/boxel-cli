@@ -235,17 +235,17 @@ export async function cardGetCommand(
 // scope. For complex queries (any/not/nested), pass the full JSON via
 // --file/--data/--stdin — skips the flag-composer entirely.
 //
-// Endpoint: GET /_search?<qs-encoded query> (same serialization the host
-// app uses — the qs package with strictNullHandling, no encoding).
-// Returns a JSON:API collection document on stdout; --ids extracts just
-// the id column.
+// Endpoint: POST /_search with `X-HTTP-Method-Override: QUERY` and a JSON
+// body (Boxel realms require QUERY semantics; the override pattern is
+// portable across Node fetch implementations). Returns a JSON:API
+// collection document on stdout; --ids extracts just the id column.
 // ─────────────────────────────────────────────────────────────────────
 
 interface SearchOptions extends CommonOptions, FilterFlags, SortFlags {
-  pageSize?: string;
-  pageNumber?: string;
+  pageSize?: number;
+  pageNumber?: number;
   ids?: boolean;             // print only `data[].id`, one per line
-  url?: boolean;             // print the _search URL and exit (don't fetch)
+  curl?: boolean;            // print runnable curl command and exit (don't fetch)
   count?: boolean;           // print total count (meta.page.total)
 }
 
@@ -271,10 +271,10 @@ export async function cardSearchCommand(
   const sort = buildSort(options);
   if (sort) query.sort = sort;
 
-  if (options.pageSize || options.pageNumber) {
+  if (options.pageSize !== undefined || options.pageNumber !== undefined) {
     query.page = {};
-    if (options.pageSize) query.page.size = parseInt(options.pageSize, 10);
-    if (options.pageNumber) query.page.number = parseInt(options.pageNumber, 10);
+    if (options.pageSize !== undefined) query.page.size = options.pageSize;
+    if (options.pageNumber !== undefined) query.page.number = options.pageNumber;
   }
 
   if (Object.keys(query).length === 0) {
@@ -284,10 +284,22 @@ export async function cardSearchCommand(
   const { realmUrl, jwt } = await authenticate(realmRef, options.quiet);
   const searchUrl = `${realmUrl}_search`;
 
-  if (options.url) {
-    // Also print the qs form for reference / use with curl --data
-    const queryString = qs.stringify(query, { strictNullHandling: true, encode: false });
-    process.stdout.write(`${searchUrl}?${queryString}\n`);
+  if (options.curl) {
+    // Emit a runnable curl invocation (JWT included) plus the qs form
+    // commented out for eyeballing. Stdout stays shell-pasteable.
+    const body = JSON.stringify(query);
+    const shellSafeBody = body.replace(/'/g, "'\\''");
+    const qsForm = qs.stringify(query, { strictNullHandling: true, encode: false });
+    process.stdout.write(
+      `# query (qs-encoded, for reference only — not the request shape):\n` +
+      `#   ${searchUrl}?${qsForm}\n` +
+      `curl -X POST '${searchUrl}' \\\n` +
+      `  -H 'X-HTTP-Method-Override: QUERY' \\\n` +
+      `  -H 'Accept: ${CARD_JSON}' \\\n` +
+      `  -H 'Content-Type: application/json' \\\n` +
+      `  -H 'Authorization: ${jwt}' \\\n` +
+      `  -d '${shellSafeBody}'\n`,
+    );
     return;
   }
 

@@ -74,6 +74,10 @@ describe('parseKV', () => {
   it('allows empty values', () => {
     expect(parseKV(['key='])).toEqual({ key: '' });
   });
+
+  it('throws on empty key', () => {
+    expect(() => parseKV(['=value'])).toThrow(/non-empty key/);
+  });
 });
 
 describe('parseCodeRef', () => {
@@ -260,5 +264,19 @@ describe('buildSort', () => {
 
   it('rejects invalid directions', () => {
     expect(() => buildSort({ sort: ['x:sideways'] })).toThrow(/direction/);
+  });
+
+  it('rejects empty sort field name', () => {
+    expect(() => buildSort({ sort: [':desc'] })).toThrow(/field name/);
+  });
+});
+
+describe('buildFilterFromFlags — input validation', () => {
+  it('rejects empty key in --in', () => {
+    expect(() => buildFilterFromFlags({ in: ['=a,b'] })).toThrow(/non-empty key/);
+  });
+
+  it('rejects empty key in range ops', () => {
+    expect(() => buildFilterFromFlags({ gt: ['=100'] })).toThrow(/non-empty key/);
   });
 });

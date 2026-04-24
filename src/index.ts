@@ -12,6 +12,15 @@ function parsePositiveInt(raw: string, _prev: unknown): number {
   return n;
 }
 
+/** Parse a non-negative integer (0+) from a CLI flag. */
+function parseNonNegativeInt(raw: string, _prev: unknown): number {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new InvalidArgumentError(`expected a non-negative integer, got "${raw}"`);
+  }
+  return n;
+}
+
 import { pushCommand } from './commands/push.js';
 import { pullCommand } from './commands/pull.js';
 import { listCommand } from './commands/list.js';
@@ -354,7 +363,7 @@ cardGroup
 
 cardGroup
   .command('search')
-  .description('Query cards via Boxel filter language (GET /_search)')
+  .description('Query cards via Boxel filter language (POST /_search with X-HTTP-Method-Override: QUERY)')
   .argument('<realm>', 'Realm ref: . | @user/workspace | https://...')
   .option('--type <coderef>', "CardTypeFilter: 'module-url#Name' (e.g., 'https://realms.example.com/presence#Presence')")
   .option('--on <coderef>', "Scope for eq/in/contains/range: 'module-url#Name'")
@@ -367,14 +376,14 @@ cardGroup
   .option('--lte <kv...>', "Range lte: repeatable 'field=value'")
   .option('--sort <spec...>', "Sort: repeatable 'field:asc' or 'field:desc'")
   .option('--sort-on <coderef>', "Scope for sort fields: 'module-url#Name'")
-  .option('--page-size <n>', 'Page size')
-  .option('--page-number <n>', 'Page number (0-based)')
+  .option('--page-size <n>', 'Page size', parsePositiveInt)
+  .option('--page-number <n>', 'Page number (0-based)', parseNonNegativeInt)
   .option('-f, --file <path>', 'Read entire Query JSON from file (bypasses flag composer)')
   .option('-d, --data <json>', 'Inline Query JSON')
   .option('-s, --stdin', 'Read Query JSON from stdin')
   .option('--ids', 'Print only card ids, one per line (pipe-friendly)')
   .option('--count', 'Print only the total count')
-  .option('--url', 'Print the resolved _search URL and exit (do not fetch)')
+  .option('--curl', 'Print runnable curl command (with JWT) and exit (do not fetch)')
   .option('-o, --output <path>', 'Write response body to file instead of stdout')
   .option('-q, --quiet', 'Suppress non-essential output')
   .action(async (realm: string, options: any) => {
@@ -745,4 +754,11 @@ Examples:
   boxel profile migrate            Import credentials from .env
 `);
 
-program.parse();
+program.parseAsync().catch((err) => {
+  // Surface a clean one-line error instead of a raw unhandled rejection
+  // stack. Individual commands may still call process.exit(1) themselves
+  // on recoverable failures; this catches only what they didn't handle.
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(msg);
+  process.exit(1);
+});

@@ -40,8 +40,8 @@ export function parseKV(items: string[] | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const s of items ?? []) {
     const idx = s.indexOf('=');
-    if (idx < 0) {
-      throw new Error(`Expected key=value, got: ${s}`);
+    if (idx <= 0) {
+      throw new Error(`Expected key=value with non-empty key, got: ${s}`);
     }
     out[s.slice(0, idx)] = parseValue(s.slice(idx + 1));
   }
@@ -109,7 +109,9 @@ export function buildFilterFromFlags(flags: FilterFlags): any | undefined {
     const inObj: Record<string, unknown[]> = {};
     for (const s of flags.in) {
       const idx = s.indexOf('=');
-      if (idx < 0) throw new Error(`Expected key=v1,v2, got: ${s}`);
+      if (idx <= 0) {
+        throw new Error(`Expected key=v1,v2 with non-empty key, got: ${s}`);
+      }
       const key = s.slice(0, idx);
       const values = s.slice(idx + 1).split(',').map((v) => parseValue(v.trim()));
       inObj[key] = values;
@@ -124,7 +126,9 @@ export function buildFilterFromFlags(flags: FilterFlags): any | undefined {
   const applyRange = (op: 'gt' | 'gte' | 'lt' | 'lte', items?: string[]) => {
     for (const s of items ?? []) {
       const idx = s.indexOf('=');
-      if (idx < 0) throw new Error(`Expected key=value, got: ${s}`);
+      if (idx <= 0) {
+        throw new Error(`Expected key=value with non-empty key, got: ${s}`);
+      }
       const key = s.slice(0, idx);
       ranges[key] ??= {};
       ranges[key][op] = parseValue(s.slice(idx + 1));
@@ -157,6 +161,9 @@ export function buildSort(flags: SortFlags): any[] | undefined {
   const sortOn = flags.sortOn ? parseCodeRef(flags.sortOn) : undefined;
   return flags.sort.map((s) => {
     const [by, direction = 'asc'] = s.split(':');
+    if (!by) {
+      throw new Error(`Sort field name required, got: ${s}`);
+    }
     if (direction !== 'asc' && direction !== 'desc') {
       throw new Error(`Invalid sort direction: ${direction} (must be asc|desc)`);
     }

@@ -369,7 +369,7 @@ work.
 raw strings. Force string with JSON quotes: `--eq 's="42"'`.
 
 **Output helpers**: `--ids` (one id per line, pipe-friendly), `--count` (just
-the total), `--url` (print the resolved `_search` URL without fetching).
+the total), `--curl` (print a runnable `curl` command — including JWT — without fetching).
 
 #### `boxel card patch` — partial update
 
