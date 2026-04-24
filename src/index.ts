@@ -35,6 +35,8 @@ import { trackCommand } from './commands/track.js';
 import { stopCommand } from './commands/stop.js';
 import { skillsCommand } from './commands/skills.js';
 import { touchCommand } from './commands/touch.js';
+import { chatCommand } from './commands/chat.js';
+import { threadCommand } from './commands/thread.js';
 import {
   cardCreateCommand,
   cardPatchCommand,
@@ -301,6 +303,71 @@ program
   .option('--dry-run', 'Show what would be done without making changes')
   .action(async (workspace: string | undefined, files: string[], options: { all?: boolean; dryRun?: boolean }) => {
     await touchCommand(workspace || '.', files || [], options);
+  });
+
+// ─────────────────────────────────────────────────────────────────────
+// `boxel chat` — share a Matrix room with a card (prototype).
+// Paired with the nuclear-mosquito realm's CliPresenceDemo card.
+// ─────────────────────────────────────────────────────────────────────
+program
+  .command('thread')
+  .description('Create a Matrix-backed Thread card and run a realm-aware CLI agent')
+  .argument('[prompt]', 'Optional first request for the OpenClaw agent')
+  .option('--realm-url <url>', 'Target realm URL', 'https://realms-staging.stack.cards/ctse/nuclear-mosquito/')
+  .option('--realm-dir <path>', 'Local synced realm directory')
+  .option('--room-id <roomId>', 'Reconnect to an existing Matrix room instead of creating one')
+  .option('--title <title>', 'Thread card title')
+  .option('--id <slug>', 'Thread instance id under Thread/<id>')
+  .option('--agent <mode>', 'Response engine: fast, claude, or search', 'fast')
+  .option('--claude-path <path>', 'Claude Code executable for --agent claude', 'claude')
+  .option('--claude-model <model>', 'Claude model for fitted authoring (default: sonnet/latest Sonnet)', 'sonnet')
+  .option('--no-upload', 'Only write the Thread files locally; do not upload to the realm')
+  .option('--as <actorId>', 'Actor id to stamp on outgoing messages (defaults to Matrix user id)')
+  .option('--agent-card <path>', 'Realm-relative path to this agent\'s Agent card (e.g., Agent/claw) for self-PATCH presence')
+  .option('--primary', 'Respond to unaddressed user messages (run exactly one agent as --primary per room)')
+  .option('-q, --quiet', 'Reduce terminal output')
+  .action(async (prompt: string | undefined, options: {
+    realmUrl?: string;
+    realmDir?: string;
+    roomId?: string;
+    title?: string;
+    id?: string;
+    agent?: string;
+    claudePath?: string;
+    claudeModel?: string;
+    upload?: boolean;
+    quiet?: boolean;
+    as?: string;
+    agentCard?: string;
+    primary?: boolean;
+  }) => {
+    await threadCommand(prompt, {
+      realmUrl: options.realmUrl,
+      realmDir: options.realmDir,
+      roomId: options.roomId,
+      title: options.title,
+      id: options.id,
+      agent: options.agent,
+      claudePath: options.claudePath,
+      claudeModel: options.claudeModel,
+      noUpload: options.upload === false,
+      quiet: options.quiet,
+      as: options.as,
+      agentCard: options.agentCard,
+      primary: options.primary,
+    });
+  });
+
+program
+  .command('chat')
+  .description('Share a Matrix room with a card via custom bot-trigger events (prototype)')
+  .argument('<roomId>', 'Matrix room ID (e.g., !abc:stack.cards) — from the card')
+  .option('--realm <url>', 'Realm URL to stamp on outgoing events (optional)')
+  .option('--heartbeat <seconds>', 'Auto-send a cli.heartbeat every N seconds, rotating through nursing-porpoise CQ cards', parsePositiveInt)
+  .option('--keep-aibot', 'Leave @aibot in the room (default: kick on join to avoid LLM cost)')
+  .option('-q, --quiet', 'Suppress non-essential output')
+  .action(async (roomId: string, options: { realm?: string; quiet?: boolean; heartbeat?: number; keepAibot?: boolean }) => {
+    await chatCommand(roomId, options);
   });
 
 // ─────────────────────────────────────────────────────────────────────

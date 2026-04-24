@@ -6,6 +6,15 @@ export interface MatrixAccess {
   userId: string;
 }
 
+export interface MatrixTimelineEvent {
+  type: string;
+  content: Record<string, unknown>;
+  event_id: string;
+  origin_server_ts: number;
+  sender: string;
+  room_id?: string;
+}
+
 export class MatrixClient {
   readonly matrixURL: URL;
   readonly username: string;
@@ -141,6 +150,59 @@ export class MatrixClient {
     }
   }
 
+  async createRoom(options: {
+    name?: string;
+    topic?: string;
+    preset?: 'private_chat' | 'public_chat' | 'trusted_private_chat';
+    invite?: string[];
+    visibility?: 'public' | 'private';
+  } = {}): Promise<string> {
+    const response = await this.request(
+      '_matrix/client/v3/createRoom',
+      'POST',
+      {
+        body: JSON.stringify({
+          preset: options.preset ?? 'private_chat',
+          visibility: options.visibility ?? 'private',
+          ...(options.name ? { name: options.name } : {}),
+          ...(options.topic ? { topic: options.topic } : {}),
+          ...(options.invite ? { invite: options.invite } : {}),
+        }),
+      },
+    );
+    if (!response.ok) {
+      const body = await this.safeReadErrorBody(response);
+      throw new Error(
+        `createRoom failed: status ${response.status} - ${JSON.stringify(body)}`,
+      );
+    }
+    const json = (await response.json()) as { room_id: string };
+    return json.room_id;
+  }
+
+  async kickUser(
+    roomId: string,
+    userId: string,
+    reason?: string,
+  ): Promise<boolean> {
+    const response = await this.request(
+      `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/kick`,
+      'POST',
+      {
+        body: JSON.stringify({
+          user_id: userId,
+          ...(reason ? { reason } : {}),
+        }),
+      },
+    );
+    if (response.ok) return true;
+    if (response.status === 403 || response.status === 404) return false;
+    const body = await this.safeReadErrorBody(response);
+    throw new Error(
+      `kick ${userId} from ${roomId}: status ${response.status} - ${JSON.stringify(body)}`,
+    );
+  }
+
   async getAccountData<T>(type: string): Promise<T | null> {
     if (!this.access) {
       throw new Error('Must be logged in to get account data');
@@ -183,6 +245,63 @@ export class MatrixClient {
         `Unable to set account data '${type}' for ${this.access.userId}: status ${response.status} - ${JSON.stringify(errorBody)}`,
       );
     }
+  }
+
+  async sendEvent(
+    roomId: string,
+    eventType: string,
+    content: unknown,
+  ): Promise<string> {
+    const txnId = `boxel-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const response = await this.request(
+      `_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/send/${encodeURIComponent(eventType)}/${txnId}`,
+      'PUT',
+      { body: JSON.stringify(content) },
+    );
+    if (!response.ok) {
+      const body = await this.safeReadErrorBody(response);
+      throw new Error(
+        `sendEvent ${eventType} to ${roomId} failed: status ${response.status} - ${JSON.stringify(body)}`,
+      );
+    }
+    const json = (await response.json()) as { event_id: string };
+    return json.event_id;
+  }
+
+  async sync(
+    since?: string,
+    timeoutMs = 30000,
+  ): Promise<{
+    next_batch: string;
+    rooms?: {
+      join?: Record<
+        string,
+        { timeline?: { events?: MatrixTimelineEvent[] } }
+      >;
+    };
+  }> {
+    const params = new URLSearchParams();
+    if (since) params.set('since', since);
+    params.set('timeout', String(timeoutMs));
+    const response = await this.request(
+      `_matrix/client/v3/sync?${params.toString()}`,
+      'GET',
+    );
+    if (!response.ok) {
+      const body = await this.safeReadErrorBody(response);
+      throw new Error(
+        `sync failed: status ${response.status} - ${JSON.stringify(body)}`,
+      );
+    }
+    return (await response.json()) as {
+      next_batch: string;
+      rooms?: {
+        join?: Record<
+          string,
+          { timeline?: { events?: MatrixTimelineEvent[] } }
+        >;
+      };
+    };
   }
 
   private async safeReadErrorBody(response: Response): Promise<unknown> {
